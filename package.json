@@ -1,0 +1,31 @@
+{
+  "name": "freestyler-holyrics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Integrador que faz a iluminação DMX acompanhar a cor da apresentação do Holyrics",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --experimental-strip-types src/main.ts",
+    "start:built": "node dist/main.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "culori": "^4.0.2",
+    "pino": "^10.3.1",
+    "pino-roll": "^4.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/culori": "^4.0.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  }
+}

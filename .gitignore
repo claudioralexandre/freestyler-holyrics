@@ -2,3 +2,31 @@
 .claude/settings.local.json
 .claude/worktrees/
 .claude/.credentials.json
+
+# Dependências e build
+node_modules/
+dist/
+
+# Configuração real do integrador — contém host/porta desta instalação.
+# O token vive em variável de ambiente, nunca aqui. Versionado: config.example.json
+config/config.json
+
+# Log do serviço, incluindo os arquivos rotacionados
+logs/
+
+# PID do processo em segundo plano (scripts/start)
+.run/
+*.log
+
+# Variáveis de ambiente (HOLYRICS_TOKEN)
+.env
+.env.*
+!.env.example
+
+# Sistema operacional e editores
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/

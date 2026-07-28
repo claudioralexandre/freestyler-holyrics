@@ -1,0 +1,41 @@
+{
+  "_leia-me": [
+    "Copie este arquivo para config/config.json e ajuste. O real fica fora do git.",
+    "O token NÃO vem daqui: use a variável de ambiente HOLYRICS_TOKEN.",
+    "CONFIG_PATH sobrepõe o caminho deste arquivo; LOG_LEVEL sobrepõe log.nivel.",
+    "",
+    "AINDA NÃO CALIBRADOS — os três valores abaixo são chute declarado e só podem",
+    "ser definidos observando o Holyrics real (ver quickstart.md, cenarios 4 e 5):",
+    "  leitura.regiao          qual das 8 posicoes do color map representa o tema",
+    "  cor.limiarDeltaE        acima do ruido do fundo, abaixo da troca real de tema",
+    "  holyrics.requestTimeoutMs  depende da latencia medida contra localhost"
+  ],
+
+  "holyrics": {
+    "host": "localhost",
+    "port": 8080,
+    "requestTimeoutMs": 800
+  },
+
+  "leitura": {
+    "intervaloMs": 1000,
+    "regiao": 0
+  },
+
+  "cor": {
+    "limiarDeltaE": 10,
+    "ciclosDeConfirmacao": 2
+  },
+
+  "reconexao": {
+    "intervaloInicialMs": 1000,
+    "intervaloMaximoMs": 15000
+  },
+
+  "log": {
+    "nivel": "info",
+    "arquivo": "./logs/integrador.log",
+    "tamanhoMaximoMb": 10,
+    "arquivosMantidos": 5
+  }
+}
