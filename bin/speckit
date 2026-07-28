@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Executa os slash commands do Spec Kit a partir do terminal.
+#
+# Os comandos /speckit-* sao instrucoes lidas pelo Claude Code, nao binarios.
+# Este wrapper abre o Claude Code ja com o comando no prompt.
+#
+# Uso:
+#   speckit plan            # via dispatcher
+#   speckit-plan            # via symlink (mesmo efeito)
+#   speckit-specify "texto" # argumentos sao repassados ao comando
+set -euo pipefail
+
+COMANDOS="constitution specify clarify plan tasks analyze checklist implement converge taskstoissues"
+
+if ! command -v claude >/dev/null 2>&1; then
+  echo "erro: 'claude' nao encontrado no PATH." >&2
+  exit 127
+fi
+
+nome="$(basename "$0")"
+
+if [ "$nome" = "speckit" ]; then
+  if [ $# -lt 1 ]; then
+    echo "uso: speckit <comando> [texto]" >&2
+    echo "comandos: $COMANDOS" >&2
+    exit 2
+  fi
+  comando="speckit-$1"
+  shift
+else
+  comando="$nome"
+fi
+
+sufixo="${comando#speckit-}"
+if ! printf '%s\n' $COMANDOS | grep -qx "$sufixo"; then
+  echo "erro: comando desconhecido '$sufixo'." >&2
+  echo "comandos: $COMANDOS" >&2
+  exit 2
+fi
+
+if [ $# -gt 0 ]; then
+  exec claude "/$comando $*"
+else
+  exec claude "/$comando"
+fi
