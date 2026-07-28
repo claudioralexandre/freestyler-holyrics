@@ -1,0 +1,4 @@
+# Claude Code local state (may contain credentials / machine-specific settings)
+.claude/settings.local.json
+.claude/worktrees/
+.claude/.credentials.json
