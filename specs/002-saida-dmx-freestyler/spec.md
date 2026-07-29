@@ -82,7 +82,7 @@ perderam objeto. Detalhes em [contracts/freestyler.md](contracts/freestyler.md).
   risco de divergir.
 - **Ferramenta de calibração removida** (era FR-030 a FR-030c). Existia para
   descobrir qual luminária está em qual endereço por tentativa e erro. A
-  informação é consultável. O inventário vai para o log (FR-026-obs).
+  informação é consultável. O inventário vai para o log (FR-025a).
 - **Fatiamento em lotes de ~100 removido** (FR-014). O limite pertence ao
   caminho por canal cru; pela via de grupo, o custo de uma aplicação de cor não
   cresce com o número de fixtures.
@@ -461,8 +461,12 @@ log diz exatamente isso, listando os nomes válidos.
   travada — os `write` continuam "funcionando" para o vazio, possivelmente para
   sempre. O heartbeat é o único sinal de saúde disponível.
 - **FR-021b**: A janela de tolerância antes de declarar perda MUST ser
-  configurável e MUST acomodar pelo menos dois batimentos perdidos, para não
-  transformar atraso de escalonamento em falsa queda.
+  configurável e MUST acomodar **pelo menos três batimentos perdidos com folga**
+  — no mínimo 4500 ms, dado o pulso observado de ~1499 ms.
+  > **Corrigido em 2026-07-29.** A redação anterior pedia dois batimentos e o
+  > mínimo era 3000 ms. Dois batimentos são 2998 ms: a margem contra atraso de
+  > escalonamento do event loop era de **2 ms**, o que na prática significa
+  > nenhuma. Um GC mais longo bastaria para declarar queda falsa.
 - **FR-021c**: O sistema MUST NOT interpretar o heartbeat como confirmação de
   comando. Ele chega no ritmo próprio, mesmo sem tráfego algum (FR-015b).
 - **FR-028**: Ao receber pedido de encerramento, o sistema MUST NOT comandar
@@ -482,8 +486,8 @@ log diz exatamente isso, listando os nomes válidos.
 - **FR-025**: O sistema MUST registrar, em nível normal, as transições de estado
   — cor aplicada, entrada e saída de repouso, disponibilidade do Freestyler —
   sem uma linha por evento consumido.
-- **FR-026-obs**: Na inicialização e a cada reconexão, o sistema MUST registrar
-  o inventário lido do Freestyler: versão, grupos encontrados e qual deles foi
+- **FR-025a**: Na inicialização e a cada reconexão, o sistema MUST registrar o
+  inventário lido do Freestyler: versão, grupos encontrados e qual deles foi
   resolvido como seguidor. É o que permite diagnosticar configuração errada sem
   abrir a mesa.
 
@@ -495,7 +499,7 @@ log diz exatamente isso, listando os nomes válidos.
 > tentativa e erro está disponível para consulta. Some junto a regra de recusar
 > execução com o serviço no ar, que só existia por causa dela.
 >
-> A capacidade não se perdeu: FR-026-obs põe o mesmo inventário no log, sem
+> A capacidade não se perdeu: FR-025a põe o mesmo inventário no log, sem
 > ferramenta separada, sem parar o serviço e sem mexer em luz nenhuma.
 
 #### Repouso
@@ -658,7 +662,7 @@ log diz exatamente isso, listando os nomes válidos.
 - Alterar o comportamento de leitura especificado na 001.
 - **Ferramenta de calibração separada.** Removida em 2026-07-29: o Freestyler
   responde nome e endereço das fixtures, então não há o que descobrir por
-  tentativa e erro. O inventário vai para o log (FR-026-obs).
+  tentativa e erro. O inventário vai para o log (FR-025a).
 - **Comando por canal cru.** O caminho `CLR / @ / DMX / ENTER` está verificado e
   funciona, mas não é implementado: exigiria de volta o endereçamento em arquivo
   que esta revisão eliminou. Fica documentado em
