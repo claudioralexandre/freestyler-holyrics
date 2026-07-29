@@ -37,11 +37,10 @@ telão, fixtures seguidoras azuis no palco.
   nunca implementa transição temporizada. Como esse comportamento não foi
   observado, é suposição não verificada com queda para salto instantâneo
   (FR-013, FR-013a).
-- Q: Quando o serviço sobe e ainda não recebeu nenhum evento, o que acontece com
-  as fixtures seguidoras? → A: A cor de repouso é aplicada imediatamente na
-  subida, antes de qualquer leitura (FR-027). Esperar evento não serve: se nunca
-  houve apresentação, a 001 não emite `apresentacao_encerrada`, porque esse
-  evento é uma transição.
+- ~~Q: Quando o serviço sobe e ainda não recebeu nenhum evento, o que acontece
+  com as fixtures seguidoras? → A: A cor de repouso é aplicada imediatamente na
+  subida.~~ **Revertida em 2026-07-29** — ver a sessão seguinte. A premissa de
+  que comandar era invisível não sobreviveu à verificação do protocolo.
 - Q: Ao encerrar o serviço, o integrador comanda algo antes de sair? → A: Não
   (FR-028). Encerrar significa parar de comandar; o operador que para o serviço
   quer as luzes na mão dele, inclusive quando o motivo é o integrador estar se
@@ -93,6 +92,29 @@ perderam objeto. Detalhes em [contracts/freestyler.md](contracts/freestyler.md).
   Socket TCP aberto não denuncia mesa travada.
 - **Fade deixa de ser hipótese e passa a ser impossibilidade** (FR-013a). Não há
   comando para isso na tabela do fabricante.
+- **`Group N` é toggle, e a seleção é exclusiva** (FR-012a, FR-012a-2). Enviar o
+  comando "por garantia" apagaria a luz em toda aplicação par.
+
+Perguntas de fato ao usuário, nesta sessão:
+
+- Q: Depois de aplicar a cor, o integrador restaura a seleção de grupos que o
+  operador tinha? → A: Não (FR-012c). Restaurar exige mais um toggle sobre um
+  estado que pode ter mudado no intervalo, e cada toggle a mais é risco num
+  protocolo sem confirmação de cor. Durante o culto a cor é do integrador.
+- Q: Como o nome do grupo é comparado com o que vem do Freestyler? → A:
+  Ignorando maiúsculas/minúsculas e espaços nas pontas (FR-009b). Acentos
+  contam. O nome é digitado à mão; acerto de digitação não deveria ser
+  requisito, mas tolerar demais esconderia colisão entre grupos.
+- Q: O integrador continua procurando o grupo se ele não existir? → A: Sim,
+  sempre que houver cor para aplicar e o grupo ainda não tiver sido resolvido
+  (FR-011a). Cobre o caso real de configurar antes do culto e corrigir sem
+  reiniciar, e não custa ciclo nenhum em regime normal.
+- Q: Na subida, aplicar a cor de repouso imediatamente, sabendo que isso agora
+  rouba a seleção de grupo da mesa? → A: **Não** (FR-027). **Reverte** a decisão
+  da sessão de 28/07. O raciocínio de lá continua válido; o que caiu foi a
+  premissa de que comandar era invisível. Aplicar cor exige selecionar o grupo,
+  e a subida é quando o operador está configurando o Freestyler. O integrador
+  passa a esperar a primeira cor real antes de tocar na mesa.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -185,10 +207,13 @@ fixtures seguidoras vão para a cor de repouso configurada.
    a apresentação ter acabado.
 4. **Given** a cor de repouso configurada como preto, **When** chega
    `apresentacao_encerrada`, **Then** as fixtures seguidoras apagam.
-5. **Given** o serviço recém-iniciado, sem nenhum evento recebido, **When** ele
-   termina de subir, **Then** as fixtures seguidoras já estão na cor de repouso
-   — sem depender de o Holyrics estar aberto ou de haver apresentação.
-6. **Given** uma apresentação em exibição cuja cor extraída é preta, **When**
+5. **Given** o serviço recém-iniciado e nenhuma apresentação no Holyrics,
+   **When** ele termina de subir, **Then** nenhum comando é enviado, as fixtures
+   ficam como o operador as deixou, e o log diz que se aguarda a primeira cor.
+6. **Given** o serviço aguardando a primeira cor, **When** a primeira
+   apresentação entra e a cor é anunciada, **Then** o grupo é selecionado e
+   colorido — e só a partir daí o repouso passa a valer.
+7. **Given** uma apresentação em exibição cuja cor extraída é preta, **When**
    ela é anunciada, **Then** ela é aplicada como cor normal — o sistema não a
    confunde com repouso nem a suprime.
 
@@ -302,6 +327,17 @@ log diz exatamente isso, listando os nomes válidos.
 - **FR-009a**: O sistema MUST resolver o nome configurado para a posição do
   grupo na consulta, e MUST tratar essa posição como detalhe interno — a
   configuração fala em nome, nunca em número.
+- **FR-009b**: A comparação de nomes MUST ignorar diferença de maiúsculas e
+  minúsculas e espaços nas pontas. Acentos **contam**: `"Mov Chao"` não casa com
+  `"01: Mov Chão"`.
+  > O nome é digitado à mão a partir do que se lê na tela do Freestyler. Tolerar
+  > caixa e espaço elimina os dois enganos mais comuns; tolerar acento
+  > começaria a aproximar nomes distintos, e a mensagem de erro de FR-010 já
+  > resolve o resto mostrando os nomes reais.
+- **FR-009c**: Se mais de um grupo casar com o nome configurado sob a regra de
+  FR-009b, o sistema MUST recusar operar sobre luz e registrar a ambiguidade com
+  os nomes conflitantes. Escolher um deles em silêncio seria pior que não
+  comandar.
 - **FR-010**: Na inicialização, o sistema MUST verificar que o grupo configurado
   existe no Freestyler. Se não existir, MUST recusar operar sobre luz, registrar
   o nome procurado e **listar os grupos encontrados**, para que o erro se
@@ -311,17 +347,45 @@ log diz exatamente isso, listando os nomes válidos.
 - **FR-011**: O sistema MUST reverificar a existência do grupo a cada
   reconexão ao Freestyler. O operador pode ter renomeado ou removido o grupo
   enquanto a mesa esteve fora.
+- **FR-011a**: Enquanto o grupo não estiver resolvido, o sistema MUST tentar
+  resolvê-lo de novo a cada vez que houver cor para aplicar. Uma vez resolvido,
+  MUST NOT repetir a busca até a próxima reconexão.
+  > O caso real é configurar antes do culto: o operador sobe o serviço, vê no log
+  > que errou o nome, corrige no Freestyler e espera que funcione sem reiniciar.
+  > Amarrar a nova tentativa à existência de cor a aplicar evita tanto o
+  > reinício obrigatório quanto uma consulta em laço durante o culto inteiro.
+- **FR-011b**: A falha repetida de resolução MUST ser registrada apenas quando a
+  condição mudar, não a cada tentativa — mesma regra que a 001 usa para falha
+  parcial, e pelo mesmo motivo: um culto inteiro não pode virar a mesma linha
+  repetida milhares de vezes.
 - **FR-012**: O sistema MUST aplicar a cor anunciada aos três slots de mistura
   do grupo selecionado, sem correção de gama, curva ou calibração por fixture.
   **Verificado**: os slots que a tabela do fabricante chama de Cyan, Magenta e
   Yellow correspondem a vermelho, verde e azul em fixture aditiva.
-- **FR-012a**: Cada aplicação de cor MUST ser precedida da seleção do grupo. O
-  sistema MUST NOT presumir que a seleção anterior sobreviveu — o operador
-  também mexe na mesa.
+- **FR-012a**: Cada aplicação de cor MUST ser precedida da **garantia** de que o
+  grupo seguidor está selecionado: o sistema MUST ler o status dos grupos e só
+  enviar o comando de seleção **se o grupo não estiver ativo**.
+  > **Verificado em 2026-07-29, e é o motivo deste requisito existir nesta
+  > forma.** O comando `Group N` é **toggle**, não seleção: enviado com o grupo
+  > já ativo, ele **desliga**. A redação anterior — "selecionar antes de cada
+  > aplicação" — faria a luz apagar em toda aplicação par. Ler antes de enviar
+  > torna a operação idempotente.
+- **FR-012a-1**: O sistema MUST NOT presumir que a seleção anterior sobreviveu.
+  O operador mexe na mesa, e a seleção é estado global do Freestyler.
+- **FR-012a-2**: **Verificado**: a seleção de grupos é **exclusiva** — ativar um
+  grupo desativa o anterior. O sistema MUST NOT tentar desativar outros grupos
+  antes de ativar o seu; ativar o seu já basta, e comandos a mais só aumentam a
+  chance de erro.
 - **FR-012b**: O sistema MUST reconhecer que selecionar um grupo **altera o
   estado visível do Freestyler**, e MUST registrar isso na documentação de
   operação. É efeito colateral inevitável do único caminho disponível, não
   descuido.
+- **FR-012c**: O sistema MUST NOT restaurar a seleção que havia antes de aplicar
+  a cor. O grupo seguidor permanece selecionado.
+  > Restaurar exigiria um toggle a mais sobre um estado que pode ter mudado no
+  > intervalo — o integrador devolveria uma seleção já obsoleta, pior que não
+  > devolver. E cada comando a mais é risco num protocolo em que a cor não é
+  > confirmável.
 - **FR-013**: O integrador MUST NOT implementar transição temporizada própria
   entre a cor anterior e a nova. Cada mudança de cor é um envio único; qualquer
   suavização é responsabilidade do Freestyler.
@@ -386,7 +450,7 @@ log diz exatamente isso, listando os nomes válidos.
   socket vivo. A reagendagem MUST usar intervalo crescente até um teto, para não
   saturar um alvo já em dificuldade.
 - **FR-029b**: O sistema MUST registrar em log a falha de envio e a divergência
-  resultante entre cor pretendida e último conjunto entregue, para que um palco
+  resultante entre cor pretendida e último conjunto escrito, para que um palco
   em duas cores seja diagnosticável pelo log.
 - **FR-021**: O sistema MUST registrar em log as transições de disponibilidade do
   Freestyler uma vez por transição, não a cada tentativa.
@@ -452,13 +516,27 @@ log diz exatamente isso, listando os nomes válidos.
 - **FR-026d**: A cor de repouso MUST ser única para todas as fixtures
   seguidoras, declarada uma só vez na configuração. A configuração MUST NOT
   aceitar cor de repouso por fixture.
-- **FR-027**: Na inicialização, antes de qualquer leitura do Holyrics e de
-  qualquer evento recebido, o sistema MUST aplicar a cor de repouso às fixtures
-  seguidoras. Não é aceitável aguardar evento: se nunca houve apresentação, a 001
-  não emite `apresentacao_encerrada`, por ser evento de transição.
-- **FR-027a**: A cor de repouso aplicada na inicialização MUST passar a ser o
-  estado de saída corrente, de modo que a reaplicação na reconexão (FR-020)
-  cubra o caso do Freestyler ainda fechado quando o serviço subiu.
+- **FR-027**: O sistema MUST NOT comandar nada até receber o primeiro
+  `cor_anunciada`. Enquanto isso, as fixtures do grupo seguidor permanecem como
+  o operador as deixou, por tempo indeterminado.
+  > **Revertido em 2026-07-29.** A primeira rodada de clarificação decidiu o
+  > oposto — aplicar repouso já na subida —, e o motivo era bom: sem apresentação
+  > desde o início, a 001 não emite `apresentacao_encerrada`, que é evento de
+  > transição, então esperar por evento poderia significar esperar para sempre.
+  >
+  > O que mudou foi a premissa, não o raciocínio. Naquele momento comandar era
+  > invisível: supunha-se escrita direta em canais DMX. Verificou-se que aplicar
+  > cor exige **selecionar o grupo**, o que altera o que o operador vê na mesa —
+  > e a subida do serviço é justamente quando ele está configurando as coisas.
+  > Entrar puxando a seleção dele foi julgado pior que deixar as fixtures como
+  > estão até haver cor real para aplicar.
+- **FR-027a**: A partir do primeiro `cor_anunciada`, o repouso passa a valer
+  normalmente: `apresentacao_encerrada` leva as seguidoras à cor de repouso
+  (FR-004), e a partir daí o estado de saída existe e é reaplicado na reconexão
+  (FR-020).
+- **FR-027b**: O sistema MUST registrar em log que está aguardando a primeira
+  cor antes de comandar. Sem essa linha, "ainda não houve apresentação" e
+  "integrador quebrado" têm o mesmo sintoma: nada acontece.
 
 ### Key Entities
 
@@ -503,10 +581,13 @@ log diz exatamente isso, listando os nomes válidos.
 - **SC-007**: A partir do log detalhado de uma única aplicação de cor, é possível
   reconstruir a cor de origem, o grupo atingido e o valor de cada slot, sem
   consultar o código.
-- **SC-008**: Encerrada a apresentação, as fixtures seguidoras exibem a cor de
-  repouso configurada em até 1 segundo, e uma apresentação de cor preta é
-  visualmente distinguível de "sem apresentação" sempre que a cor de repouso não
-  for preta.
+- **SC-008**: Encerrada a apresentação **depois de ao menos uma cor ter sido
+  aplicada**, as fixtures seguidoras exibem a cor de repouso configurada em até 1
+  segundo, e uma apresentação de cor preta é visualmente distinguível de "sem
+  apresentação" sempre que a cor de repouso não for preta.
+- **SC-011**: Subindo o serviço sem apresentação no Holyrics, nenhum comando
+  chega ao Freestyler e a seleção de grupos da mesa permanece como o operador a
+  deixou — verificável consultando o status de grupos antes e depois.
 - **SC-009**: Configurar o integrador exige do operador **apenas o nome de um
   grupo que ele já criou no Freestyler** — nenhum endereço DMX, nenhum offset de
   canal, nenhuma contagem de fixtures.

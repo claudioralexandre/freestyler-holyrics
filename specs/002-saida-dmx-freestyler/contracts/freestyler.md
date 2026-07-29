@@ -76,8 +76,8 @@ corresponde ao n-ésimo endereço.
 
 | Comando | Código | Efeito observado |
 |---|---|---|
-| `FSOC034255` … `FSOC043255` | 34–43 | Selecionar grupos 1 a 10 |
-| `FSOC550255` … `FSOC563255` | 550–563 | Selecionar grupos 11 a 24 |
+| `FSOC034255` … `FSOC043255` | 34–43 | **Alternar** grupos 1 a 10 |
+| `FSOC550255` … `FSOC563255` | 550–563 | **Alternar** grupos 11 a 24 |
 | `FSOC130vvv` | 130 | **Vermelho** do grupo selecionado |
 | `FSOC131vvv` | 131 | **Verde** |
 | `FSOC132vvv` | 132 | **Azul** |
@@ -96,6 +96,32 @@ zerados apagaram.
 Outros faders semânticos documentados: `138` Intensity, `137` Shutter, `582`
 Amber, `583`/`584` White, `128`/`129` Color, `124`–`127` Gobo, `133`/`135`
 Pan/Tilt.
+
+### Grupo é toggle, e a seleção é exclusiva
+
+Duas observações que mudam como o comando deve ser usado:
+
+**`Group N` alterna, não seleciona.** Enviado com o grupo já ativo, ele
+**desativa**:
+
+```
+grupo 3 ativo   ->  FSOC036255  ->  nenhum ativo
+nenhum ativo    ->  FSOC036255  ->  grupo 3 ativo
+```
+
+Quem enviar o comando "por garantia" antes de cada operação apaga a luz na
+metade das vezes. O uso correto é ler o status primeiro e só enviar se o grupo
+não estiver ativo.
+
+**A seleção é exclusiva.** Com o grupo 3 ativo, ativar o 4 desativa o 3 — não
+somam:
+
+```
+nenhum          ->  FSOC036255  ->  grupo 3   (fixtures 1-6)
+grupo 3         ->  FSOC037255  ->  grupo 4   (fixtures 7-8)
+```
+
+Não é preciso desativar o grupo anterior; ativar o desejado basta.
 
 ### O ciclo se autoverifica
 

@@ -47,6 +47,14 @@
   fatiamento em lotes; entraram a configuração por nome de grupo, o heartbeat
   como sinal de disponibilidade e a distinção entre o que é confirmável (seleção)
   e o que não é (cor).
+- **Clarificação de 2026-07-29 (2ª rodada)**: quatro perguntas ao usuário e duas
+  correções forçadas por observação da mesa. A observação achou um defeito que a
+  spec ia embutir: `Group N` é **toggle**, então "selecionar antes de cada
+  aplicação" apagaria a luz em toda aplicação par. Corrigido em FR-012a, que
+  agora exige ler o status antes de enviar.
+- **Uma decisão da 1ª rodada foi revertida** (FR-027, repouso na subida). O
+  raciocínio original continuava válido; caiu a premissa de que comandar era
+  invisível. Ambas as versões ficam registradas, com o motivo da virada.
 - **Nenhuma dívida de Princípio I em aberto.** As duas integrações do projeto
   estão verificadas contra as ferramentas reais. É a primeira vez que a spec
   entra em planejamento sem suposição de contrato pendente — na 001, verificar
