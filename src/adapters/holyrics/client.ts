@@ -1,21 +1,18 @@
 /**
  * ┌───────────────────────────────────────────────────────────────────────────┐
- * │ ⚠️  CONTRATO NÃO VERIFICADO                                                │
+ * │ ✅ CONTRATO VERIFICADO EM PARTE — Holyrics 2.29.1, 2026-07-28              │
  * │                                                                           │
- * │ Transporte, autenticação e classificação de erro aqui vieram da           │
- * │ DOCUMENTAÇÃO pública do Holyrics API Server, não de uso contra a          │
- * │ ferramenta em execução.                                                   │
- * │                                                                           │
- * │ O Princípio I da constitution permite construir sobre contrato presumido  │
- * │ apenas enquanto a suposição estiver marcada — é o que este bloco faz.     │
+ * │ Transporte, autenticação e classificação de erro foram confirmados        │
+ * │ contra a ferramenta real:                                                 │
+ * │   - corpo vazio `{}` é aceito nas actions sem parâmetro                   │
+ * │   - token recusado devolve HTTP 401 + {"error": "invalid token"}          │
+ * │   - action sem permissão devolve HTTP 401 + {"error":"unauthorized...}    │
+ * │     — mesmo código, causa diferente, distinguidos no `detalhe`            │
+ * │   - respostas vêm com `Connection: close`; não há keep-alive              │
  * │                                                                           │
  * │ Fonte:  specs/001-leitura-cor-holyrics/contracts/holyrics-api.md          │
- * │ Remover este aviso somente após executar a tarefa T064 (verificação).     │
  * │                                                                           │
  * │ Ainda NÃO observado:                                                      │
- * │   - se o Holyrics aceita corpo vazio nas actions sem parâmetro            │
- * │   - qual código HTTP acompanha token recusado (200 + envelope? 401/403?)  │
- * │   - a string exata devolvida quando o token é inválido                    │
  * │   - se `type: "presentation"` reflete a tela pública ou a de preview      │
  * └───────────────────────────────────────────────────────────────────────────┘
  */

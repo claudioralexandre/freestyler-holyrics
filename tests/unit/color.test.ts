@@ -4,8 +4,10 @@ import { lerColorMap } from '../../src/adapters/holyrics/schema.ts';
 import type { LeituraDeCor } from '../../src/core/state.ts';
 import {
   colorMapComponenteForaDaFaixa,
+  colorMapNulo,
   colorMapNãoÉArray,
   colorMapOk,
+  colorMapReal,
 } from '../fixtures/holyrics-responses.ts';
 
 const oitoRegioes: LeituraDeCor = {
@@ -97,5 +99,36 @@ describe('validação do color map recebido', () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.motivo).toBe('resposta_invalida');
+  });
+
+  // Observado no Holyrics 2.29.1 em 2026-07-28. O contrato documentado dizia
+  // `red`; a ferramenta manda `reg`. Sem estes testes a leitura de cor falha
+  // em 100% dos ciclos, e o sintoma é "a cor nunca muda" — não um erro visível.
+  it('aceita o formato real: campo do vermelho chamado `reg`', () => {
+    const r = lerColorMap(colorMapReal);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.regioes).toHaveLength(8);
+    expect(r.valor.regioes[0]).toEqual({ r: 255, g: 0, b: 36 });
+  });
+
+  it('continua aceitando `red`, caso o Holyrics corrija o nome', () => {
+    const r = lerColorMap(colorMapOk);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.regioes[0]).toEqual({ r: 0, g: 0, b: 255 });
+  });
+
+  it('trata `data: null` como ausência de cor, não como resposta inválida', () => {
+    const r = lerColorMap(colorMapNulo);
+
+    // Sem apresentação em exibição o Holyrics devolve null aqui, igual às
+    // outras actions. Classificar isso como falha encheria o log de erro falso
+    // em todo momento sem projeção.
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.regioes).toEqual([]);
   });
 });

@@ -1,11 +1,15 @@
 /**
  * Respostas de exemplo do Holyrics.
  *
- * ⚠️ ORIGEM: documentação pública, NÃO observação da ferramenta real.
- * Contrato: specs/001-leitura-cor-holyrics/contracts/holyrics-api.md
+ * ORIGEM MISTA — leia antes de usar como referência:
  *
- * Quando a verificação contra o Holyrics real acontecer, estas fixtures devem
- * ser substituídas pelas respostas realmente observadas.
+ *   - As fixtures até `colorMapNãoÉArray` vieram da DOCUMENTAÇÃO pública e são
+ *     mantidas de propósito: o formato que elas descrevem é o que a
+ *     documentação promete, e é justamente o que o Holyrics real NÃO manda.
+ *   - As fixtures marcadas "OBSERVADAS" foram capturadas do Holyrics 2.29.1 em
+ *     2026-07-28 e são a referência verdadeira.
+ *
+ * Contrato: specs/001-leitura-cor-holyrics/contracts/holyrics-api.md
  */
 
 /** Array de 8 posições — o formato que GetColorMap devolve (não regiões nomeadas). */
@@ -35,6 +39,40 @@ export const colorMapComponenteForaDaFaixa = {
 };
 
 export const colorMapNãoÉArray = { status: 'ok', data: { hex: '0000FF' } };
+
+// ---------------------------------------------------------------------------
+// OBSERVADAS no Holyrics 2.29.1 (Windows 10) em 2026-07-28.
+// Diferem da documentação: o campo do vermelho chama-se `reg`, não `red`, e o
+// do hexadecimal `hexa`, não `hex`. As fixtures acima ficam como registro do
+// que a documentação prometia — são o motivo de a leitura nunca ter funcionado.
+// ---------------------------------------------------------------------------
+
+/** GetColorMap com apresentação em exibição: 8 posições, campos `hexa`/`reg`. */
+export const colorMapReal = {
+  status: 'ok',
+  data: [
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+    { hexa: 'FF0024', reg: 255, green: 0, blue: 36 },
+  ],
+};
+
+/** GetColorMap sem apresentação: `data: null`, não array vazio. */
+export const colorMapNulo = { status: 'ok', data: null };
+
+/** Token errado: HTTP 401 com esta mensagem. */
+export const erroTokenInvalido = { status: 'error', error: 'invalid token' };
+
+/** Token válido, action sem permissão: HTTP 401 com mensagem diferente. */
+export const erroActionNaoAutorizada = {
+  status: 'error',
+  error: 'unauthorized action',
+};
 
 export const presentationOk = {
   status: 'ok',

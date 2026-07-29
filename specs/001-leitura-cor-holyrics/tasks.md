@@ -203,16 +203,16 @@ não está pronta**, por mais verde que a suíte esteja.
 
 ### Verificação (Princípio I — bloqueia a conclusão)
 
-- [ ] T064 Executar o procedimento de verificação de [contracts/holyrics-api.md](contracts/holyrics-api.md) contra um Holyrics real e substituir cada linha "A verificar" por observação, trocando o status de cada seção (FR-021)
-- [ ] T065 Corrigir `src/adapters/holyrics/schema.ts` e `src/adapters/holyrics/client.ts` onde a verificação do T064 divergir do suposto, e **remover a marcação de suposição do T015a** — o código deixa de ser presunção e passa a ser contrato observado
-- [ ] T066 Registrar a resposta exata do Holyrics a um token inválido e ajustar a classificação `credencial_recusada` do T059 (FR-017)
+- [X] T064 Executar o procedimento de verificação de [contracts/holyrics-api.md](contracts/holyrics-api.md) contra um Holyrics real e substituir cada linha "A verificar" por observação, trocando o status de cada seção (FR-021)
+- [X] T065 Corrigir `src/adapters/holyrics/schema.ts` e `src/adapters/holyrics/client.ts` onde a verificação do T064 divergir do suposto, e **remover a marcação de suposição do T015a** — o código deixa de ser presunção e passa a ser contrato observado
+- [X] T066 Registrar a resposta exata do Holyrics a um token inválido e ajustar a classificação `credencial_recusada` do T059 (FR-017)
 - [X] T067 Confirmar a superfície de API do `culori` (`differenceCiede2000`, `converter('lab')`) contra a versão instalada e ajustar `src/core/color.ts` se divergir
 
 ### Calibração (valores hoje são chute declarado)
 
-- [ ] T068 Executar o cenário 4 do [quickstart.md](quickstart.md), escolher o índice de região que representa o tema e gravar em `config/config.example.json`, registrando a descoberta em [contracts/holyrics-api.md](contracts/holyrics-api.md)
-- [ ] T069 Executar o cenário 5 do [quickstart.md](quickstart.md), medir a variação de ΔE em repouso e definir `cor.limiarDeltaE` acima do ruído observado, validando o SC-003
-- [ ] T070 Medir a latência típica das três consultas contra `localhost` e definir `holyrics.requestTimeoutMs` com folga (FR-004)
+- [X] T068 Executar o cenário 4 do [quickstart.md](quickstart.md), escolher o índice de região que representa o tema e gravar em `config/config.example.json`, registrando a descoberta em [contracts/holyrics-api.md](contracts/holyrics-api.md)
+- [X] T069 Executar o cenário 5 do [quickstart.md](quickstart.md), medir a variação de ΔE em repouso e definir `cor.limiarDeltaE` acima do ruído observado, validando o SC-003
+- [X] T070 Medir a latência típica das três consultas contra `localhost` e definir `holyrics.requestTimeoutMs` com folga (FR-004)
 
 ### Fechamento
 

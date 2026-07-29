@@ -35,9 +35,9 @@ existe.
 | Decisão | Escolha |
 |---|---|
 | Stack | Node.js 22 LTS + TypeScript, módulos ESM |
-| Gatilho | Cor predominante da apresentação + troca de item + avanço de slide |
+| Gatilho | Cor do tema em exibição + troca de item + avanço de slide |
 | Execução | Serviço headless, mapeamento em arquivo de config |
-| Topologia | Tudo na mesma máquina Windows, comunicação por `localhost` |
+| Topologia | Alvo: tudo na mesma máquina Windows por `localhost`. **Verificado entre duas máquinas na LAN** — ver ressalva do token abaixo |
 | Diferença de cor | Perceptual (ΔE CIEDE2000), não distância em RGB |
 | Anti-flicker | Limiar de ΔE **mais** confirmação por permanência (N leituras seguidas) |
 | Bibliotecas | `culori` (cor), `pino` + `pino-roll` (log), `zod` (config), `vitest` (testes) |
@@ -70,10 +70,13 @@ Actions relevantes:
 
 - **`GetColorMap`** — o coração do projeto. Com `type: "presentation"` devolve
   `data` como **array de 8 posições**, uma por seção da tela pública, cada uma
-  `{ hex, red, green, blue }` com componentes 0–255. **Não há região nomeada** —
-  a configuração aponta a região por **índice 0–7**. Qual índice corresponde a
-  qual parte da tela a documentação não diz; isso é objeto de calibração. Outros
-  valores de `type`: `background`, `image`, `video`, `printscreen`.
+  `{ hexa, reg, green, blue }` com componentes 0–255. **Atenção aos nomes**: a
+  documentação diz `hex`/`red`, mas a ferramenta manda `hexa`/**`reg`** — `reg` é
+  o vermelho. Exigir `red` fazia toda leitura falhar, em silêncio. **Não há
+  região nomeada** — a configuração aponta por **índice 0–7**; a região 0 é a
+  mais representativa (verificado). Sem apresentação, `data` vem `null`, não
+  array. Outros `type`: `printscreen` (captura real, difere de `presentation`),
+  e `background`/`image`/`video`, que vêm `null` com tema gerado.
 - **`GetCurrentPresentation`** — item em exibição, ou `null` se não há
   apresentação. Campos: `id`, `type` (`song`, `verse`, `text`, `image`…), `name`,
   `song_id`, `slide_number`, `total_slides`, `slide_type`.
@@ -108,12 +111,16 @@ Qualquer envio em massa precisa ser fatiado.
 
 - **Nem toda fixture segue a cor.** A config declara quais fixtures são
   seguidoras; as demais ficam intocadas pelo integrador.
-- **Evitar flicker.** Polling contínuo sobre uma imagem de fundo produz variação
-  de cor a cada leitura. Resolvido na spec 001 com **duas** barreiras, não uma:
-  limiar de ΔE perceptual **e** confirmação por permanência — a cor nova precisa
-  se sustentar por N leituras seguidas antes de ser anunciada. Uma leitura só
-  acima do limiar (flash de vídeo, transição de slide) zera a contagem e não vira
-  evento. Não repasse toda variação para as luzes.
+- **Evitar flicker.** A spec 001 pôs **duas** barreiras: limiar de ΔE perceptual
+  **e** confirmação por permanência. A justificativa original era que o polling
+  sobre fundo em vídeo produziria variação a cada leitura.
+  > **Premissa desmentida (2026-07-28).** A verificação contra o Holyrics 2.29.1
+  > mediu **ruído zero**: 80 leituras com vídeo rodando, 80 trocas de slide, e o
+  > color map não mudou um bit. Ele é função **do tema**, não do quadro nem do
+  > slide. As duas barreiras continuam no código como seguro barato — e porque
+  > protegem se uma versão futura passar a amostrar por quadro — mas hoje são
+  > seguro, não necessidade. O `limiarDeltaE` deixou de filtrar ruído e passou a
+  > ser perceptual: por isso caiu de 10 para 2.
 - **O Freestyler é um alvo frágil.** Como o protocolo emula teclas, comandos
   rápidos demais ou em excesso podem se perder. Respeite o limite de ~100 valores
   e não bombardeie o socket.
@@ -182,20 +189,34 @@ referência de cor).
   ir para uma cor padrão.
 - Se o evento de slide deve gerar reação nas luzes, e qual.
 
-**Abertas, dependem de rodar contra o real:** o índice de região que representa o
-tema, o valor de ΔE do limiar e o tempo limite de consulta. Os três estão no
-`config.example.json` como chute declarado.
+**Resolvidas na verificação de 2026-07-28** (Holyrics 2.29.1): índice de região
+(**0**, a mais próxima do centroide das oito), limiar de ΔE (**2**, agora
+perceptual e não anti-ruído) e tempo limite (**800ms**, contra 1,5ms medido). Os
+três deixaram de ser chute.
+
+**Abertas, ainda dependem do real:** item sem noção de slide (imagem avulsa), se
+`type: "presentation"` reflete tela pública ou preview, e o tamanho relativo de
+cada uma das 8 regiões.
 
 ## Nota sobre estes dados
 
-Os detalhes das duas APIs acima vieram de leitura da documentação pública, não de
-uso verificado contra as ferramentas rodando.
+**O Holyrics foi verificado em 2026-07-28** contra a versão 2.29.1, e o registro
+completo está em `specs/001-leitura-cor-holyrics/contracts/holyrics-api.md`. A
+verificação achou quatro divergências que a documentação não deixava suspeitar:
 
-Para o Holyrics, o contrato levantado está registrado em
-`specs/001-leitura-cor-holyrics/contracts/holyrics-api.md`, marcado como **NÃO
-VERIFICADO**, com tabelas do que falta observar e o procedimento de verificação.
-**É esse o arquivo a corrigir** quando houver acesso ao Holyrics real — e o
-código que o consome deve carregar a mesma marcação até lá.
+1. **`reg` em vez de `red`** — impedia 100% das leituras de cor, sem erro visível.
+2. **`data: null` no color map** sem apresentação — era tratado como resposta malformada.
+3. **É média amostrada, não cor predominante** — e a cor não muda com o vídeo nem com o slide.
+4. **Dois erros distintos sob o mesmo HTTP 401** — pediam ações opostas do operador.
 
-Para o Freestyler, nada foi levantado ainda além do que está nesta página. O
-comportamento do conector sob carga continua sendo suposição.
+A primeira sozinha justifica a existência do Princípio I: o sintoma seria "a luz
+nunca muda de cor", indistinguível de configuração errada.
+
+**Ressalva de segurança.** A verificação rodou entre duas máquinas na LAN, não em
+`localhost`. O token viaja em claro na query string, e a justificativa para
+descartar o modo hash SHA256 era justamente não haver rede no caminho. Se a
+topologia de duas máquinas virar definitiva, essa decisão precisa ser reaberta.
+
+**O Freestyler continua não verificado.** Nada foi levantado além do que está
+nesta página; o comportamento do conector sob carga segue sendo suposição, e a
+spec 002 já nasce com essa dívida marcada.
