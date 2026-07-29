@@ -86,47 +86,47 @@ grupo assumir a cor, sem Holyrics.
 
 ## Phase 4 — US2: o Freestyler fechado não derruba o culto (P2)
 
-- [ ] T025 [US2] Escrever `tests/unit/heartbeat.test.ts` para `avaliarPulso`: dentro da janela → disponível; além da janela → indisponível; transição emite evento **uma vez** (FR-021); primeiro ciclo registra o estado encontrado sem fingir transição (`jáAvaliado`); o pulso **não** conta como confirmação de comando (FR-021c). Confirmar RED
-- [ ] T026 [US2] Implementar `avaliarPulso` em `src/core/heartbeat.ts` (FR-021a, FR-021b)
-- [ ] T027 [US2] Ligar o heartbeat ao cliente: cada `0xFF` recebido atualiza `últimoPulso`; a avaliação roda em intervalo próprio
-- [ ] T028 [US2] Escrever teste de que, na reconexão, é a **cor pretendida** que é reaplicada — não a fila de cores que passaram (FR-020). Confirmar RED
-- [ ] T029 [US2] Implementar a reaplicação na reconexão e o backoff, reaproveitando `src/core/backoff.ts` da 001 (FR-018, FR-019)
-- [ ] T030 [US2] Implementar o log de transição de disponibilidade, uma linha por transição, nunca por tentativa (FR-021, FR-025)
-- [ ] T031 [US2] Escrever teste de que exceção ao processar um evento é capturada e descartada sem interromper o consumo (FR-007). Confirmar RED, depois implementar
+- [X] T025 [US2] Escrever `tests/unit/heartbeat.test.ts` para `avaliarPulso`: dentro da janela → disponível; além da janela → indisponível; transição emite evento **uma vez** (FR-021); primeiro ciclo registra o estado encontrado sem fingir transição (`jáAvaliado`); o pulso **não** conta como confirmação de comando (FR-021c). Confirmar RED
+- [X] T026 [US2] Implementar `avaliarPulso` em `src/core/heartbeat.ts` (FR-021a, FR-021b)
+- [X] T027 [US2] Ligar o heartbeat ao cliente: cada `0xFF` recebido atualiza `últimoPulso`; a avaliação roda em intervalo próprio
+- [X] T028 [US2] Escrever teste de que, na reconexão, é a **cor pretendida** que é reaplicada — não a fila de cores que passaram (FR-020). Confirmar RED
+- [X] T029 [US2] Implementar a reaplicação na reconexão e o backoff, reaproveitando `src/core/backoff.ts` da 001 (FR-018, FR-019)
+- [X] T030 [US2] Implementar o log de transição de disponibilidade, uma linha por transição, nunca por tentativa (FR-021, FR-025)
+- [X] T031 [US2] Escrever teste de que exceção ao processar um evento é capturada e descartada sem interromper o consumo (FR-007). Confirmar RED, depois implementar
 
 **Checkpoint**: cenário 9 do quickstart. Cobre **SC-003** e **SC-004**.
 
 ## Phase 5 — US3: sem apresentação, estado definido (P3)
 
-- [ ] T032 [US3] Escrever em `tests/unit/saida.test.ts` os testes da trava de FR-027: com `jáHouveCor === false`, `planejarEnvio` devolve **lista vazia** qualquer que seja o estado; `apresentacao_encerrada` antes da primeira cor não gera repouso. Confirmar RED
-- [ ] T033 [US3] Implementar a trava em `src/core/saida.ts` (FR-027)
-- [ ] T034 [US3] Escrever testes do repouso depois da primeira cor: `apresentacao_encerrada` leva à `corDeRepouso` (FR-004, FR-027a); cor preta anunciada é aplicada como cor normal, não confundida com repouso (FR-026c). Confirmar RED
-- [ ] T035 [US3] Implementar o repouso em `src/core/saida.ts`
-- [ ] T036 [US3] Implementar o log de "aguardando a primeira cor" (FR-027b), sem o qual "ainda não houve apresentação" e "integrador quebrado" têm o mesmo sintoma
+- [X] T032 [US3] Escrever em `tests/unit/saida.test.ts` os testes da trava de FR-027: com `jáHouveCor === false`, `planejarEnvio` devolve **lista vazia** qualquer que seja o estado; `apresentacao_encerrada` antes da primeira cor não gera repouso. Confirmar RED
+- [X] T033 [US3] Implementar a trava em `src/core/saida.ts` (FR-027)
+- [X] T034 [US3] Escrever testes do repouso depois da primeira cor: `apresentacao_encerrada` leva à `corDeRepouso` (FR-004, FR-027a); cor preta anunciada é aplicada como cor normal, não confundida com repouso (FR-026c). Confirmar RED
+- [X] T035 [US3] Implementar o repouso em `src/core/saida.ts`
+- [X] T036 [US3] Implementar o log de "aguardando a primeira cor" (FR-027b), sem o qual "ainda não houve apresentação" e "integrador quebrado" têm o mesmo sintoma
 
 **Checkpoint**: cenários 5 e 8 do quickstart. Cobre **SC-008** e **SC-011**.
 
 ## Phase 6 — US4: o operador descobre por que não funciona (P4)
 
-- [ ] T037 [US4] Escrever teste de que a resolução é retentada enquanto o grupo não for resolvido **e houver cor a aplicar**, e **não** é retentada depois de resolvida (FR-011a). Confirmar RED
-- [ ] T038 [US4] Implementar a retentativa em `src/core/saida.ts`, como parte de `planejarEnvio`
-- [ ] T039 [US4] Escrever teste de que a falha de resolução é registrada **apenas na mudança de condição**, não a cada tentativa (FR-011b). Confirmar RED
-- [ ] T040 [US4] Implementar a supressão de log repetido
-- [ ] T041 [US4] Implementar a leitura do inventário na subida e a cada reconexão: versão, grupos, fixtures e endereços (FR-011). A decodificação já está coberta por T005/T006
-- [ ] T042 [US4] Implementar o log do inventário em nível normal, com o grupo resolvido destacado (FR-025a)
-- [ ] T043 [US4] Implementar as mensagens de grupo não encontrado (FR-010, com a lista dos existentes) e de grupo ambíguo (FR-009c, com os conflitantes), sem derrubar o processo (FR-010a)
+- [X] T037 [US4] Escrever teste de que a resolução é retentada enquanto o grupo não for resolvido **e houver cor a aplicar**, e **não** é retentada depois de resolvida (FR-011a). Confirmar RED
+- [X] T038 [US4] Implementar a retentativa em `src/core/saida.ts`, como parte de `planejarEnvio`
+- [X] T039 [US4] Escrever teste de que a falha de resolução é registrada **apenas na mudança de condição**, não a cada tentativa (FR-011b). Confirmar RED
+- [X] T040 [US4] Implementar a supressão de log repetido
+- [X] T041 [US4] Implementar a leitura do inventário na subida e a cada reconexão: versão, grupos, fixtures e endereços (FR-011). A decodificação já está coberta por T005/T006
+- [X] T042 [US4] Implementar o log do inventário em nível normal, com o grupo resolvido destacado (FR-025a)
+- [X] T043 [US4] Implementar as mensagens de grupo não encontrado (FR-010, com a lista dos existentes) e de grupo ambíguo (FR-009c, com os conflitantes), sem derrubar o processo (FR-010a)
 
 **Checkpoint**: cenários 3 e 4 do quickstart. Cobre **SC-006** e **SC-009**.
 
 ## Phase 7 — Envio robusto
 
-- [ ] T044 Escrever testes do tudo-ou-nada: falha em qualquer comando do envio **não** avança `últimoConjuntoEscrito` (FR-029); a divergência dispara reenvio mesmo sem queda de conexão (FR-029a). Confirmar RED
-- [ ] T045 Implementar o tudo-ou-nada em `src/service/saida-dmx.ts`, com reagendamento em backoff
-- [ ] T046 Escrever teste de que cor nova durante envio em curso resulta na cor **mais recente** ao final, descartando intermediárias (FR-017). Confirmar RED
-- [ ] T047 Implementar a serialização e o descarte de intermediárias
-- [ ] T048 Implementar o log de falha de envio com a divergência entre pretendida e escrita (FR-029b)
-- [ ] T049 Implementar o encerramento que **não** comanda nada, aguardando apenas envio em curso (FR-028, FR-028a)
-- [ ] T050 [P] **Revisão de vocabulário e de não-requisitos.** Conferir em código, tipos e log que: nada afirma "entregue" ou "aplicada" para cor, só "escrita" (FR-015b); não existe transição temporizada própria (FR-013, FR-013a); não existe intervalo mínimo entre envios (FR-031); não existe restauração de seleção (FR-012c). São requisitos negativos, verificáveis por leitura e não por teste
+- [X] T044 Escrever testes do tudo-ou-nada: falha em qualquer comando do envio **não** avança `últimoConjuntoEscrito` (FR-029); a divergência dispara reenvio mesmo sem queda de conexão (FR-029a). Confirmar RED
+- [X] T045 Implementar o tudo-ou-nada em `src/service/saida-dmx.ts`, com reagendamento em backoff
+- [X] T046 Escrever teste de que cor nova durante envio em curso resulta na cor **mais recente** ao final, descartando intermediárias (FR-017). Confirmar RED
+- [X] T047 Implementar a serialização e o descarte de intermediárias
+- [X] T048 Implementar o log de falha de envio com a divergência entre pretendida e escrita (FR-029b)
+- [X] T049 Implementar o encerramento que **não** comanda nada, aguardando apenas envio em curso (FR-028, FR-028a)
+- [X] T050 [P] **Revisão de vocabulário e de não-requisitos.** Conferir em código, tipos e log que: nada afirma "entregue" ou "aplicada" para cor, só "escrita" (FR-015b); não existe transição temporizada própria (FR-013, FR-013a); não existe intervalo mínimo entre envios (FR-031); não existe restauração de seleção (FR-012c). São requisitos negativos, verificáveis por leitura e não por teste
 
 **Checkpoint**: cobre **SC-010**.
 
@@ -210,3 +210,12 @@ ser incompleto; não pode ser incorreto.
 | 8 — Verificação real | 6 |
 | 9 — Documentação | 3 |
 | **Total** | **59** |
+
+## Phase 10: Convergence
+
+Lacunas encontradas ao avaliar o código contra spec, plan e constitution, e que
+**não** estão cobertas pelas tarefas pendentes das fases 4 a 9.
+
+- [X] T060 Registrar em nível **info** a aplicação de cor e as entradas e saídas de repouso, mantendo o detalhe por slot em debug, per FR-025 (partial) — hoje `cor escrita` só existe em `log.debug`, então num culto com log normal nada indica que a luz foi comandada
+- [X] T061 Chamar `invalidarGrupo()` na reconexão ao Freestyler, para que o grupo seja reverificado, per FR-011 (partial) — o método existe em `src/service/saida-dmx.ts` e não tem nenhum chamador; sem isso, um grupo renomeado enquanto a mesa esteve fora nunca é redetectado
+- [X] T062 **CRITICAL para o Princípio IV**: mover o registro de `process.on('uncaughtException')` e `process.on('unhandledRejection')` em `src/main.ts` para **antes** da montagem da saída DMX, per Constitution IV (partial) — hoje a saída sobe em `main.ts:178` e os handlers só entram em `main.ts:192`, então uma exceção durante a montagem derruba o processo

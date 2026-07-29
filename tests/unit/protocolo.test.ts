@@ -135,3 +135,21 @@ describe('heartbeat não é resposta (T007)', () => {
     expect(r.ok).toBe(false);
   });
 });
+
+
+describe('entrada malformada não derruba nada', () => {
+  it('recusa resposta com prefixo diferente de FSBC', () => {
+    // Um dia o Freestyler pode responder outra coisa nessa porta. Nao e para
+    // interpretar as cegas.
+    const r = decodificarResposta(Buffer.from('XXXX,a,b', 'latin1'));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.motivo).toBe('resposta_invalida');
+    expect(r.detalhe).toMatch(/FSBC/);
+  });
+
+  it('recusa buffer vazio', () => {
+    expect(decodificarResposta(Buffer.alloc(0)).ok).toBe(false);
+  });
+});

@@ -197,3 +197,46 @@ describe('repouso depois da primeira cor (T034)', () => {
     expect(e.corPretendida).not.toEqual(REPOUSO);
   });
 });
+
+describe('reconexão reaplica a cor PRETENDIDA, não a fila (T028, FR-020)', () => {
+  it('cores que passaram durante a queda não viram fila — vale a última', () => {
+    let e = aplicarEvento(estadoInicial(), corAnunciada(AZUL), params);
+    // Freestyler fora do ar: nada foi escrito, mas os eventos continuam
+    // chegando porque o Holyrics não caiu.
+    e = aplicarEvento(e, corAnunciada(VERMELHO), params);
+    e = aplicarEvento(e, corAnunciada({ r: 10, g: 20, b: 30 }), params);
+
+    expect(e.corPretendida).toEqual({ r: 10, g: 20, b: 30 });
+    expect(e.últimoConjuntoEscrito).toBeNull();
+  });
+
+  it('esquecer o que foi escrito faz a cor corrente ser reenviada', () => {
+    const e: EstadoDaSaída = {
+      ...aplicarEvento(estadoInicial(), corAnunciada(AZUL), params),
+      últimoConjuntoEscrito: AZUL,
+      grupo: GRUPO,
+    };
+    expect(planejarEnvio(e, mesa([3]))).toEqual([]);
+
+    // Ao reconectar, o integrador não sabe mais o que está valendo na mesa.
+    const apósReconexão: EstadoDaSaída = { ...e, últimoConjuntoEscrito: null, grupo: null };
+
+    expect(planejarEnvio(apósReconexão, mesa([3]))).toEqual(['resolver_grupo']);
+  });
+});
+
+
+describe('guardas defensivas', () => {
+  it('não planeja nada se a cor pretendida sumir com jáHouveCor verdadeiro', () => {
+    // Estado que os invariantes dizem ser impossível. A guarda existe para que
+    // um bug futuro vire "nao faz nada" em vez de escrever cor indefinida.
+    const e: EstadoDaSaída = {
+      corPretendida: null,
+      últimoConjuntoEscrito: AZUL,
+      grupo: GRUPO,
+      jáHouveCor: true,
+    };
+
+    expect(planejarEnvio(e, mesa([3]))).toEqual([]);
+  });
+});

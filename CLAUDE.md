@@ -152,16 +152,18 @@ princípios. Dois deles mudam como se escreve código aqui e não são negociáv
 
 ## Estado atual
 
-A feature **001-leitura-cor-holyrics** está especificada, planejada e com tarefas
-geradas — spec, plan, research, data-model, contratos e quickstart em
-`specs/001-leitura-cor-holyrics/`. **Ainda não há código de aplicação**: nenhum
-`package.json`, nenhuma dependência instalada. A T001 é literalmente criar o
-projeto.
+**001 — leitura de cor**: implementada, verificada contra Holyrics 2.29.1, com
+os tres valores calibrados. Falta so o quickstart completo (T073).
 
-Escopo da 001: só o lado de entrada. Lê o Holyrics, produz sinal de cor estável e
-eventos de item/slide/tema, expostos por assinatura em memória. **Nada de DMX nem
-Freestyler** — isso é feature seguinte, que se inscreve nos eventos descritos em
-`specs/001-leitura-cor-holyrics/contracts/events.md`.
+**002 — saida DMX**: especificada, planejada, e implementada ate a Phase 7 de 9.
+188 testes; nucleo e adaptador do Freestyler com **100% de cobertura**. Falta a
+verificacao com apresentacao no ar por um culto (T051-T056) e a documentacao
+final (T057-T059).
+
+O desenho da 002 mudou bastante depois que o protocolo do Freestyler foi
+verificado: a configuracao declara **nome de grupo**, nao endereco DMX, porque a
+ferramenta responde o patch quando perguntada. Isso eliminou a ferramenta de
+calibracao que a spec original previa.
 
 ## Estrutura do código (quando existir)
 

@@ -30,12 +30,33 @@ export interface OpçõesDaSaída {
 export interface SaídaDMX {
   /** Consome um evento da 001 e, se houver o que fazer, faz. */
   aoEvento(evento: Evento): Promise<void>;
-  /** Invalida o grupo resolvido — usar depois de reconectar (FR-011). */
-  invalidarGrupo(): void;
+  /**
+   * Chamar depois de reconectar ao Freestyler (FR-011, FR-020).
+   *
+   * Faz duas coisas, e as duas importam: esquece o grupo resolvido, porque o
+   * operador pode tê-lo renomeado enquanto a mesa esteve fora; e esquece o que
+   * foi escrito, porque não há como saber o que está valendo na mesa agora. A
+   * divergência resultante é o que dispara a reaplicação da cor pretendida.
+   */
+  aoReconectar(): Promise<void>;
+  /**
+   * Lê e registra o inventário do Freestyler: versão, grupos, fixtures e
+   * endereços (FR-025a).
+   *
+   * É o que substituiu a antiga ferramenta de calibração — a informação que ela
+   * ia descobrir acendendo lâmpada por lâmpada está aqui, por consulta.
+   */
+  registrarInventário(): Promise<void>;
+  /** Tenta de novo o que ficou pendente, sem esperar evento novo (FR-029a). */
+  reprocessar(): Promise<void>;
   estado(): EstadoDaSaída;
 }
 
 const RÓTULO_SLOT = ['vermelho', 'verde', 'azul'] as const;
+
+function mesmaCor(a: Cor, b: Cor): boolean {
+  return a.r === b.r && a.g === b.g && a.b === b.b;
+}
 
 export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
   const { cliente, parâmetros, log } = opções;
@@ -77,13 +98,21 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
       return false;
     }
 
+    // Nível NORMAL: é transição de estado, e sem esta linha um culto inteiro
+    // rodaria sem nada indicando que a luz foi comandada (FR-025). O detalhe
+    // por slot fica em debug (FR-024).
+    const emRepouso = mesmaCor(cor, parâmetros.corDeRepouso);
+    log.info(
+      { cor, grupo: estado.grupo?.nomeReal, repouso: emRepouso },
+      emRepouso ? 'cor de repouso escrita' : 'cor escrita',
+    );
     log.debug(
       {
         corDeOrigem: cor,
         grupo: estado.grupo?.nomeReal,
         slots: { [RÓTULO_SLOT[0]]: cor.r, [RÓTULO_SLOT[1]]: cor.g, [RÓTULO_SLOT[2]]: cor.b },
       },
-      'cor escrita',
+      'detalhe do envio de cor',
     );
     return true;
   }
@@ -161,12 +190,55 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
     }
   }
 
+  /** Enfileira um ciclo de envio. Nenhum começa antes de o anterior terminar. */
+  function enfileirar(): Promise<void> {
+    emAndamento = emAndamento.then(executarPlano).catch((e: unknown) => {
+      log.error({ erro: e instanceof Error ? e.message : String(e) }, 'falha no ciclo de saída');
+    });
+    return emAndamento;
+  }
+
   return {
     estado: () => estado,
 
-    invalidarGrupo() {
-      estado = { ...estado, grupo: null };
+    async registrarInventário() {
+      const [versão, grupos, fixtures, endereços] = await Promise.all([
+        cliente.consultar(CODIGO.versao),
+        cliente.consultar(CODIGO.nomesDeGrupos),
+        cliente.consultar(CODIGO.nomesDeFixtures),
+        cliente.consultar(CODIGO.enderecosDeFixtures),
+      ]);
+
+      if (!grupos.ok) {
+        log.warn({ detalhe: grupos.detalhe }, 'não foi possível ler o inventário do Freestyler');
+        return;
+      }
+
+      const nomes = fixtures.ok ? fixtures.valor.campos : [];
+      const ends = endereços.ok ? endereços.valor.campos : [];
+
+      log.info(
+        {
+          versão: versão.ok ? versão.valor.campos[0] : undefined,
+          grupos: grupos.valor.campos.filter((g) => g.trim() !== ''),
+          // Posicional: o n-ésimo nome corresponde ao n-ésimo endereço.
+          fixtures: nomes.map((n, i) => `${n} @${ends[i] ?? '?'}`),
+          grupoConfigurado: parâmetros.nomeDoGrupo,
+        },
+        'inventário do Freestyler',
+      );
+    },
+
+    aoReconectar() {
+      estado = { ...estado, grupo: null, últimoConjuntoEscrito: null };
       últimaFalhaDeResolução = '';
+      if (!estado.jáHouveCor) return Promise.resolve();
+      return enfileirar();
+    },
+
+    reprocessar() {
+      if (!estado.jáHouveCor) return Promise.resolve();
+      return enfileirar();
     },
 
     aoEvento(evento) {
@@ -188,10 +260,7 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
       // Envios serializados: nenhum começa antes de o anterior terminar
       // (FR-016). A cor mais recente prevalece porque `estado` é lido dentro do
       // plano, não capturado aqui (FR-017).
-      emAndamento = emAndamento.then(executarPlano).catch((e: unknown) => {
-        log.error({ erro: e instanceof Error ? e.message : String(e) }, 'falha no ciclo de saída');
-      });
-      return emAndamento;
+      return enfileirar();
     },
   };
 }

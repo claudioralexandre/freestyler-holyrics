@@ -102,3 +102,26 @@ describe('precisaSelecionar — o comando de grupo é TOGGLE (T010)', () => {
     expect(precisaSelecionar(24, status([]).slice(0, 5))).toBe(true);
   });
 });
+
+describe('retentativa de resolução (T037, FR-011a)', () => {
+  it('resolve de novo enquanto o grupo não for encontrado', () => {
+    const semOGrupo = ['outro', '', ''];
+    expect(resolverGrupo('03: Par Led', semOGrupo).ok).toBe(false);
+
+    // O operador cria o grupo no Freestyler; a leitura seguinte já acha.
+    const comOGrupo = ['outro', '', '03: Par Led'];
+    const r = resolverGrupo('03: Par Led', comOGrupo);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.posição).toBe(3);
+  });
+
+  it('a posição acompanha o índice, mesmo com buracos antes', () => {
+    const r = resolverGrupo('X', ['', '', '', 'X']);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.posição).toBe(4);
+  });
+});

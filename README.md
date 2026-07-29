@@ -8,21 +8,19 @@ azuis.
 
 ## Estado atual
 
-A primeira feature, **leitura de cor do Holyrics**, está implementada. Ela cobre
-só o lado de entrada:
+Duas features, ambas com as integrações **verificadas contra as ferramentas
+reais** — Holyrics 2.29.1 e FreeStyler 4.1.7, com hardware.
 
-- lê a cor predominante da apresentação em exibição, uma vez por segundo;
-- só anuncia mudança de cor quando ela ultrapassa um limiar perceptual (ΔE) **e**
-  se sustenta por leituras seguidas — o que evita as luzes piscarem junto com o
-  vídeo de fundo;
-- acompanha item, slide e tema, emitindo um evento para cada mudança;
-- sobrevive ao Holyrics fechado, em qualquer momento, e se recupera sozinho.
+**001 — leitura de cor do Holyrics.** Le a cor da apresentacao uma vez por
+segundo, filtra por limiar perceptual e confirmacao por permanencia, acompanha
+item, slide e tema, e sobrevive ao Holyrics fechado.
 
-**Ainda não envia nada ao Freestyler.** Os eventos ficam disponíveis por
-assinatura em memória; a feature de saída (DMX) é a próxima e vai consumi-los.
+**002 — saida DMX para o Freestyler.** Consome os eventos da 001 e aplica a cor
+nas fixtures de um grupo do Freestyler. A configuracao declara o **nome do
+grupo**, nunca endereco DMX nem offset de canal: o Freestyler ja sabe o patch e
+responde quando perguntado.
 
-> ⚠️ O contrato do Holyrics ainda **não foi verificado** contra a ferramenta real
-> — veio da documentação pública. Ver a seção *Antes de usar num culto*.
+Falta a verificacao final com apresentacao no ar por um culto inteiro.
 
 ## Requisitos
 
@@ -103,19 +101,27 @@ O arquivo real fica fora do git; só o `config.example.json` é versionado.
 
 ## Antes de usar num culto
 
-Três valores no `config.example.json` são **chute declarado** e precisam ser
-calibrados contra o Holyrics real:
-
-| Campo | Por que ainda não tem valor bom |
-|---|---|
-| `leitura.regiao` | O color map devolve 8 posições e a documentação não diz qual é qual parte da tela |
-| `cor.limiarDeltaE` | Depende de quanto o fundo em vídeo oscila nesta instalação |
-| `holyrics.requestTimeoutMs` | Depende da latência medida |
-
-O procedimento está nos cenários 4 e 5 do
-[quickstart](specs/001-leitura-cor-holyrics/quickstart.md). E o contrato da API,
-com o que falta observar, em
+Os tres valores da 001 foram **calibrados** em 2026-07-29 contra o Holyrics
+real: regiao 0, limiar de dE 2, tempo limite 800ms. Detalhes e o metodo em
 [contracts/holyrics-api.md](specs/001-leitura-cor-holyrics/contracts/holyrics-api.md).
+
+O que resta conferir na sua instalacao:
+
+| Item | Por que |
+|---|---|
+| `freestyler.grupo` | Tem que ser o nome exato do grupo no Freestyler. Se errar, o log lista os nomes validos e nenhuma luz e comandada |
+| `freestyler.corDeRepouso` | O neutro depende da instalacao. Preto apaga as seguidoras |
+
+**Efeito colateral que vale saber**: para colorir, o integrador precisa
+selecionar o grupo na mesa. Se voce estiver operando o Freestyler a mao durante
+o culto, vera a selecao mudar sozinha a cada troca de cor. Nao ha como evitar
+por esse protocolo, e a selecao anterior **nao** e restaurada de propria
+iniciativa.
+
+**O integrador nao comanda nada ate a primeira cor anunciada.** Se o servico
+subir sem apresentacao no ar, as fixtures ficam como estao, e o log diz que se
+aguarda. E deliberado: a subida do servico e quando voce esta configurando a
+mesa, e nao seria bom o integrador entrar puxando sua selecao.
 
 ## Estrutura
 
