@@ -23,6 +23,11 @@ logs/
 .env.*
 !.env.example
 
+# Documentação de terceiros trazida para análise (arquivos do Freestyler, do
+# Holyrics). São material dos fabricantes, não do projeto — o que aprendermos
+# deles vira contrato em specs/, que é o que fica versionado.
+docs/
+
 # Sistema operacional e editores
 .DS_Store
 Thumbs.db
