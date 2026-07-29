@@ -41,8 +41,14 @@
   do log. Não estava na spec inicial.
 - Menções ao limite de ~100 valores por lote e à porta do Freestyler descrevem
   restrição do alvo externo, não escolha de implementação — por isso permanecem.
-- **Risco de Princípio I registrado, não resolvido**: FR-013a especifica um
-  comportamento (fade próprio do Freestyler) que ninguém observou. A spec o trata
-  como suposição com queda para salto instantâneo, e exige marcação no código. O
-  `/speckit-plan` deve produzir a tarefa de verificação correspondente, como a
-  001 fez com o contrato do Holyrics.
+- **Revisão de 2026-07-29**: o contrato do Freestyler foi verificado contra
+  hardware **antes** do `/speckit-plan`, e a spec foi corrigida com o que se
+  observou. Saíram a ferramenta de calibração, o mapeamento por endereço e o
+  fatiamento em lotes; entraram a configuração por nome de grupo, o heartbeat
+  como sinal de disponibilidade e a distinção entre o que é confirmável (seleção)
+  e o que não é (cor).
+- **Nenhuma dívida de Princípio I em aberto.** As duas integrações do projeto
+  estão verificadas contra as ferramentas reais. É a primeira vez que a spec
+  entra em planejamento sem suposição de contrato pendente — na 001, verificar
+  depois custou quatro divergências, uma delas capaz de impedir a feature de
+  funcionar por inteiro.
