@@ -1,134 +1,168 @@
 # Contrato consumido: Freestyler
 
-**Feature**: 002-saida-dmx-freestyler | **Verificado em**: 2026-07-28
+**Feature**: 002-saida-dmx-freestyler | **Verificado em**: 2026-07-29
 
 > # ✅ VERIFICADO
 >
-> **Ambiente**: Freestyler em Windows 10 (`192.168.1.26`), porta 3332, acessado
-> pela LAN. Fixture de teste: um par LED RGB nos canais 1, 2 e 3 do universo 1
-> (1 = vermelho, 2 = verde, 3 = azul).
+> **Ambiente**: FreeStyler **4.1.7** em Windows 10 (`192.168.1.26`), porta 3332,
+> acessado pela LAN. Instalação real: 15 fixtures, 5 grupos, pares LED RGB nos
+> endereços 1, 4, 7 e 10.
 >
-> **A fixture respondeu corretamente** a comandos individuais e em lote, com
-> cliente próprio — sem a biblioteca `freestyler_node_connector`. O formato de
-> fio abaixo está confirmado contra hardware, não deduzido.
+> Verificado contra hardware: descoberta de grupos e fixtures, seleção de grupo
+> com confirmação por leitura de volta, e coloração RGB do grupo selecionado.
+>
+> **Fonte da tabela de comandos**: `Documentation/Sendmessage and TCPIP.pdf`, que
+> acompanha a instalação do FreeStyler. Não está no repositório (é material do
+> fabricante); o que interessa dele está resumido abaixo.
 
 ---
 
 ## Transporte
 
 - Socket **TCP**, porta **3332**. Sem autenticação, sem handshake.
-- A porta **3333** também aceita conexão. **Finalidade desconhecida** — não foi
-  investigada.
-- Ao conectar, o servidor **não envia banner**. Fica calado até o primeiro
-  heartbeat.
+- A porta **3333** se comporta de forma idêntica. Não é canal alternativo.
+- Ao conectar, nenhum banner.
+- **Heartbeat**: um byte `0xFF` a cada ~1499 ms, incondicional. Não é ACK —
+  chega igual com 0, 1 ou 5 comandos enviados. É pulso de vida, e o único sinal
+  que denuncia uma mesa travada com o socket ainda aberto.
 
-## Formato de fio
+## Dois protocolos na mesma porta
 
-Não é DMX. São sequências ASCII que **emulam teclas** do Freestyler.
+A biblioteca `freestyler_node_connector` usa **apenas o primeiro**, e é por isso
+que uma investigação baseada só nela conclui, erradamente, que não há leitura de
+estado.
 
-| Token | Significado |
-|---|---|
-| `FSOC335255` | CHAN (inicia a seleção de canal) |
-| `FSOC332255` | `@` |
-| `FSOC333255` | DMX |
-| `FSOC337255` | ENTER |
-| `FSOC002255` | alterna blackout |
-| `FSOC{319+d}255` | o dígito decimal `d` |
-
-Os dígitos são codificados um a um: `0` → `FSOC319255`, `1` → `FSOC320255`, …,
-`9` → `FSOC328255`. O número 255 vira três tokens.
-
-**Comando de canal**:
+### `FSOC` — comandar
 
 ```
-FSOC335255 + digitos(canal) + FSOC332255 + FSOC333255 + digitos(valor) + FSOC337255
+FSOC + código(3 dígitos) + argumento(3 dígitos) [+ argumento opcional(3)]
 ```
 
-Tamanho observado: **60 a 80 bytes por comando**, conforme a quantidade de
-dígitos. Três canais num único `write` deram 220–240 bytes.
+Para comandos de botão, o argumento é `255` (clique) ou `000` (soltar). Para
+comandos de fader, é o valor `000`–`255`.
 
-Fonte primária do formato: [FreestylerNodeConnector](https://github.com/jschyma/FreestylerNodeConnector),
-lido como especificação. Ver "Por que não usamos a biblioteca" abaixo.
+### `FSBC` — consultar
 
-## Heartbeat — o achado mais útil
+```
+FSBC + código(3 dígitos) + 000
+```
 
-O servidor envia **um byte `0xFF` a cada ~1499 ms**, indefinidamente.
+O FreeStyler **responde**:
 
-Testado em quatro condições — sem enviar nada, com 1 comando, com 5 comandos em
-rajada, e com 5 comandos num único `write`. **Nas quatro: exatamente 6 bytes em
-9 segundos, nos mesmos intervalos.**
+```
+FSBC + <byte com a contagem de itens> + "," + valores separados por vírgula
+```
 
-**Não é ACK.** É pulso de vida, independente do tráfego.
+## Consultas verificadas
 
-Isso importa porque TCP sozinho não denuncia um Freestyler travado: o socket
-segue aberto e os `write` seguem "funcionando" para o vazio. O heartbeat dá um
-sinal de saúde com resolução de ~1,5 s, e é provavelmente o detector de
-disponibilidade mais confiável disponível.
+| Comando | Devolve | Observado nesta instalação |
+|---|---|---|
+| `FSBC010000` | Versão | `4.1.7` |
+| `FSBC008000` | Nomes dos grupos | 24 posições: `01: Mov Chão`, `02: Mov. Teto`, `03: Par Led`, `04: Parede`, `05: mov`, e 19 vazias |
+| `FSBC009000` | Status dos grupos | 24 valores 0/1 — qual está ativo |
+| `FSBC017000` | Nomes das fixtures | 15 nomes: `Pl 1` … `Chão Bateria` |
+| `FSBC018000` | **Endereços das fixtures** | `1,4,7,10,13,21,29,33,92,41,49,52,62,72,82` |
+| `FSBC023000` | Fixtures selecionadas | 15 valores 0/1 |
+| `FSBC021000` | Master intensity | `72` |
 
-## Não há confirmação de entrega
+Outras consultas documentadas e não testadas: `001` legendas de cue, `005`
+status de cue, `011`–`013` submasters, `014` blackout/freeze, `016` cuelists,
+`019`/`020` velocidades, `022` fog/fan.
 
-Nenhuma resposta acompanha um comando. Testados e **todos silenciosos**:
+**A ordem de `FSBC017000` e `FSBC018000` é posicional**: o n-ésimo nome
+corresponde ao n-ésimo endereço.
 
-| Enviado | Resposta |
-|---|---|
-| Comando válido | nenhuma (só o heartbeat, no ritmo dele) |
-| Mesmo comando repetido | nenhuma |
-| Canal inexistente (999) | nenhuma |
-| Lixo puro (`LIXOQUENAOEXISTE`) | nenhuma |
+## Comandos verificados
 
-O Freestyler **não reclama de entrada inválida**. Consequência direta para a
-spec: "entregue com sucesso" não é observável. O máximo que o integrador sabe é
-"escrito no socket sem o TCP reclamar" — ver FR-015a e FR-029.
+| Comando | Código | Efeito observado |
+|---|---|---|
+| `FSOC034255` … `FSOC043255` | 34–43 | Selecionar grupos 1 a 10 |
+| `FSOC550255` … `FSOC563255` | 550–563 | Selecionar grupos 11 a 24 |
+| `FSOC130vvv` | 130 | **Vermelho** do grupo selecionado |
+| `FSOC131vvv` | 131 | **Verde** |
+| `FSOC132vvv` | 132 | **Azul** |
 
-## Carga
+### Sobre o nome dos slots de cor
 
-| Medida | Observado |
-|---|---|
-| Latência de `write` | 0,04 a 0,43 ms |
-| Backpressure | **Nenhum.** `socket.write` devolveu `true` sempre |
-| Maior lote testado | 1400 bytes, 20 comandos concatenados — aceito sem engasgo |
+A tabela chama 130/131/132 de **Cyan / Magenta / Yellow**. A lista de *release*
+os chama de **red / green / blue** (códigos 644/645/646), com o mesmo paralelo
+para amber (582↔647) e white1/white2 (583/584↔648/649).
 
-**O limite de ~100 valores por lote não foi reproduzido nem refutado.** Ele vem
-de um comentário no código da biblioteca (`// exactly 100 seem to much`), cujo
-trecho de fatiamento está **desabilitado**. O maior teste aqui foi de 20
-comandos. Tratar o limite como real continua sendo a decisão prudente (FR-014),
-mas é herança de comentário alheio, não observação nossa.
+São os **mesmos três slots de mistura de cor**, nomeados conforme a fixture:
+CMY para subtrativa, RGB para aditiva. **Verificado contra par LED RGB**:
+`130` acendeu vermelho, `131` verde, `132` azul, os três juntos deram branco, e
+zerados apagaram.
+
+Outros faders semânticos documentados: `138` Intensity, `137` Shutter, `582`
+Amber, `583`/`584` White, `128`/`129` Color, `124`–`127` Gobo, `133`/`135`
+Pan/Tilt.
+
+### O ciclo se autoverifica
+
+Selecionar um grupo e conferir pela própria ferramenta:
+
+```
+FSBC009000  ->  ,0,0,0,0,...          nenhum grupo ativo
+FSBC023000  ->  ,0,0,0,0,0,0,...      nenhuma fixture selecionada
+FSOC036255                            selecionar "03: Par Led"
+FSBC009000  ->  ,0,0,1,0,...          grupo 3 ativo
+FSBC023000  ->  ,1,1,1,1,1,1,0,...    as 6 fixtures do grupo
+```
+
+Isso **restaura parcialmente a confirmação de entrega**: a seleção é
+confirmável. O valor de cor continua não sendo — não há consulta que devolva o
+DMX corrente de um canal.
+
+## Comando por canal cru — a via da biblioteca
+
+Continua válida, e é a única quando não se quer depender de grupo:
+
+```
+FSOC335255              CLR (limpa a linha de comando)
++ dígitos(canal)        cada dígito d -> FSOC(319+d)255
++ FSOC332255            @
++ FSOC333255            DMX
++ dígitos(valor)
++ FSOC337255            ENTER
+```
+
+60 a 80 bytes por canal. **Verificado**: acendeu um par LED RGB nos canais 1–3.
+
+Comparado com a via semântica, é de seis a doze vezes mais tráfego e exige
+conhecer endereços. O limite de ~100 valores por lote — documentado pelo autor
+da biblioteca em "Known Errors" — é problema desta via, não da outra.
 
 ## Por que não usamos a biblioteca
 
-`freestyler_node_connector` 1.0.1 é idêntica ao repositório no GitHub (só muda
-CRLF) e **não recebe commit desde 2015-02-08**. São 87 linhas com quatro
-problemas:
+`freestyler_node_connector` 1.0.1, sem commit desde 2015-02-08:
 
 | Problema | Efeito |
 |---|---|
-| `this.port = 3332` fixo | Viola FR-023 e a Restrição Técnica de host/porta configuráveis |
-| Fatiamento comentado | `setDMXFromArray` despeja tudo num `write`; FR-014 teria de ser nosso de qualquer forma |
-| Dependência de `Q` | Biblioteca de promises obsoleta, desnecessária desde o Node 8 |
-| `process.on('uncaughtException', … process.exit())` | **Decisivo.** Qualquer exceção não tratada em qualquer parte do serviço passaria a derrubar o processo — o oposto do Princípio IV |
+| `process.on('uncaughtException', … process.exit())` | **Decisivo.** Qualquer exceção não tratada em qualquer parte do serviço derrubaria o processo — contra o Princípio IV |
+| `this.port = 3332` fixo | Viola FR-023 |
+| Ignora o protocolo `FSBC` | Deixa de fora descoberta, seleção por grupo e confirmação |
+| Só emula keypad | A via mais cara das duas |
+| Fatiamento comentado | FR-014 seria nosso de qualquer forma |
 
-O último item, sozinho, elimina a opção: importar a lib é entregar a um pacote
-abandonado o poder de matar um serviço que precisa sobreviver ao culto.
-
-**Decisão**: implementar o protocolo direto sobre `node:net`. São ~20 linhas, e
-o repositório fica citado como fonte do formato — o mesmo papel que a
-documentação do Holyrics teve na 001.
+O protocolo é implementado direto sobre `node:net`. O repositório fica citado
+como a fonte que revelou o formato `FSOC`, que é o valor real dele.
 
 ## A verificar
 
 | Item | Por quê |
 |---|---|
-| Finalidade da porta 3333 | Pode haver canal melhor que emulação de teclas |
-| O limite real por lote | Nosso teste foi 20 comandos; o "~100" é de terceiros |
+| Se a seleção de grupo persiste entre conexões | Determina se o integrador precisa reselecionar a cada ciclo |
+| O que acontece com fixtures fora do grupo | A spec exige que fiquem intocadas (FR-008) |
+| Se `One group only` (669) muda o comportamento de seleção | Pode simplificar ou complicar |
+| Comportamento ao fechar o FreeStyler no meio | Confirma o desenho de reconexão |
+| Se a janela precisa de foco | Emulação de teclas costuma exigir; funcionou, mas nada isolou a variável |
 | Taxa sustentada máxima | Quantos comandos por segundo antes de perder |
-| Comportamento ao fechar o Freestyler no meio | Confirma o desenho de reconexão (FR-018 a FR-021) |
-| Se a janela precisa de foco | Emulação de teclas costuma exigir; o teste funcionou, mas nada isolou a variável |
-| Se `toggleBlackout` interfere | Não usamos, mas o operador pode acionar pela mesa |
 
 ## Procedimento de verificação
 
-1. Conectar em `{host}:3332` e escutar 9 s sem enviar — devem chegar ~6 bytes `0xFF`.
-2. Enviar um comando de canal e confirmar a fixture fisicamente.
-3. Enviar os três canais num único `write` e confirmar.
-4. Enviar lixo e confirmar que não há resposta nem efeito.
-5. Repetir 1 com o Freestyler fechado — a conexão deve ser recusada.
+1. `FSBC010000` — deve devolver a versão.
+2. `FSBC008000` e `FSBC017000` — nomes de grupos e fixtures conferem com a tela.
+3. `FSBC009000`, selecionar um grupo com `FSOC`, `FSBC009000` de novo — o status muda.
+4. Com o grupo selecionado, `FSOC130255` — as fixtures ficam vermelhas.
+5. Escutar 9 s sem enviar — devem chegar ~6 bytes `0xFF`.
+6. Repetir 1 com o FreeStyler fechado — a conexão deve ser recusada.
