@@ -1,22 +1,18 @@
 /**
  * ┌───────────────────────────────────────────────────────────────────────────┐
- * │ ⚠️  CONTRATO NÃO VERIFICADO                                                │
+ * │ ✅ CONTRATO VERIFICADO EM PARTE — Holyrics 2.29.1, 2026-07-28              │
  * │                                                                           │
- * │ As formas validadas aqui vieram da DOCUMENTAÇÃO pública do Holyrics API   │
- * │ Server, não de observação da ferramenta em execução.                      │
- * │                                                                           │
- * │ O Princípio I da constitution permite construir sobre contrato presumido  │
- * │ apenas enquanto a suposição estiver marcada — é o que este bloco faz.     │
+ * │ As formas validadas aqui foram confirmadas contra a ferramenta real. A    │
+ * │ verificação achou duas divergências, ambas corrigidas abaixo:             │
+ * │   - o campo do vermelho chama-se `reg`, não `red`                         │
+ * │   - sem apresentação, o color map devolve `data: null`, não array         │
  * │                                                                           │
  * │ Fonte:  specs/001-leitura-cor-holyrics/contracts/holyrics-api.md          │
- * │ Remover este aviso somente após executar a tarefa T064 (verificação).     │
  * │                                                                           │
- * │ Ainda NÃO observado:                                                      │
- * │   - se o color map traz sempre exatamente 8 posições                      │
- * │   - se os componentes são de fato inteiros 0–255                          │
- * │   - se `id` do item é estável enquanto ele está em exibição               │
- * │   - se `slide_number` começa em 0 ou em 1                                 │
- * │   - o que o color map devolve quando não há apresentação                  │
+ * │ Ainda NÃO observado — não afeta a validação, mas segue em aberto:         │
+ * │   - se `slide_number` começa em 0 ou em 1 (só se viu o slide 2 de 3)      │
+ * │   - o que vem em item sem noção de slide (imagem, vídeo)                  │
+ * │   - se `type: "presentation"` reflete a tela pública ou a de preview      │
  * └───────────────────────────────────────────────────────────────────────────┘
  */
 
@@ -35,11 +31,27 @@ const envelope = z.union([
   z.object({ status: z.literal('error'), error: z.unknown() }),
 ]);
 
-const corBruta = z.object({
-  red: z.int().min(0).max(255),
-  green: z.int().min(0).max(255),
-  blue: z.int().min(0).max(255),
-});
+/**
+ * Uma posição do color map.
+ *
+ * VERIFICADO no Holyrics 2.29.1 (2026-07-28): o campo do vermelho chama-se
+ * `reg`, não `red` como a documentação promete — aparente erro de digitação que
+ * a ferramenta já enviou para produção. Aceitamos os dois nomes de propósito: se
+ * uma versão futura corrigir `reg` para `red`, a leitura continua funcionando.
+ * Exigir só um deles foi justamente o defeito que a verificação encontrou, e o
+ * sintoma era invisível — "a cor nunca muda", não um erro.
+ */
+const corBruta = z
+  .object({
+    reg: z.int().min(0).max(255).optional(),
+    red: z.int().min(0).max(255).optional(),
+    green: z.int().min(0).max(255),
+    blue: z.int().min(0).max(255),
+  })
+  .refine((c) => c.reg !== undefined || c.red !== undefined, {
+    message: 'sem campo de vermelho: nem `reg` nem `red`',
+  })
+  .transform((c) => ({ r: (c.reg ?? c.red) as number, g: c.green, b: c.blue }));
 
 const itemBruto = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
@@ -62,11 +74,21 @@ function falha<T>(motivo: 'resposta_invalida', detalhe: string): Resultado<T> {
 /**
  * Extrai `data` do envelope, ou classifica o erro.
  *
- * Distinguir token recusado de outro erro depende de uma string que a
- * documentação não fixa. Enquanto não verificado, a regra é conservadora:
- * qualquer erro não reconhecido vira `resposta_invalida` (falha parcial), nunca
- * queda de disponibilidade — para não confundir "action falhou" com "Holyrics
- * caiu" (FR-004c, FR-017).
+ * VERIFICADO no Holyrics 2.29.1 (2026-07-28). Dois erros distintos chegam com o
+ * mesmo HTTP 401, separados só pela mensagem:
+ *
+ *   - `invalid token`       — a credencial está errada. Trocar o token resolve.
+ *   - `unauthorized action` — a credencial está certa, mas esta action não está
+ *                             liberada para ela. Trocar o token NÃO resolve; o
+ *                             ajuste é nas permissões, dentro do Holyrics.
+ *
+ * Os dois continuam sendo `credencial_recusada`, porque nenhum se resolve com
+ * nova tentativa. O que muda é o `detalhe`, para o log não mandar o operador
+ * consertar a coisa errada.
+ *
+ * Qualquer erro não reconhecido segue virando `resposta_invalida` (falha
+ * parcial), nunca queda de disponibilidade — para não confundir "action falhou"
+ * com "Holyrics caiu" (FR-004c, FR-017).
  */
 export function extrairData(bruto: unknown): Resultado<unknown> {
   const r = envelope.safeParse(bruto);
@@ -76,8 +98,20 @@ export function extrairData(bruto: unknown): Resultado<unknown> {
 
   if (r.data.status === 'error') {
     const texto = JSON.stringify(r.data.error ?? '').toLowerCase();
+    if (texto.includes('unauthorized action')) {
+      return {
+        ok: false,
+        motivo: 'credencial_recusada',
+        detalhe:
+          'action não autorizada para este token — ajuste as permissões no Holyrics, não a credencial',
+      };
+    }
     if (texto.includes('token') || texto.includes('unauthorized')) {
-      return { ok: false, motivo: 'credencial_recusada' };
+      return {
+        ok: false,
+        motivo: 'credencial_recusada',
+        detalhe: 'credencial recusada pelo Holyrics',
+      };
     }
     return falha('resposta_invalida', `Holyrics devolveu erro: ${texto}`);
   }
@@ -85,12 +119,24 @@ export function extrairData(bruto: unknown): Resultado<unknown> {
   return { ok: true, valor: r.data.data };
 }
 
-/** Valida o retorno de GetColorMap: array de posições com componentes 0–255. */
+/**
+ * Valida o retorno de GetColorMap: array de posições com componentes 0–255.
+ *
+ * VERIFICADO no Holyrics 2.29.1 (2026-07-28): sem apresentação em exibição a
+ * action devolve `data: null`, igual a GetCurrentPresentation e GetCurrentTheme
+ * — a documentação não menciona esse caso. É ausência legítima, não resposta
+ * malformada: tratá-la como falha encheria o log de erro falso em todo momento
+ * sem projeção, que é a maior parte do tempo antes do culto.
+ */
 export function lerColorMap(bruto: unknown): Resultado<LeituraDeCor> {
   const envelopado = extrairData(bruto);
   if (!envelopado.ok) return envelopado;
 
   const data = envelopado.valor;
+  if (data === null || data === undefined) {
+    return { ok: true, valor: { regioes: [] } };
+  }
+
   if (!Array.isArray(data)) {
     return falha('resposta_invalida', 'color map não veio como array');
   }
@@ -104,7 +150,7 @@ export function lerColorMap(bruto: unknown): Resultado<LeituraDeCor> {
         `posição ${i} do color map fora do formato ou da faixa 0–255`,
       );
     }
-    regioes.push({ r: c.data.red, g: c.data.green, b: c.data.blue });
+    regioes.push(c.data);
   }
 
   return { ok: true, valor: { regioes } };
