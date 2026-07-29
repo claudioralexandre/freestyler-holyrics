@@ -40,6 +40,31 @@
     "intervaloMaximoMs": 15000
   },
 
+  "_freestyler-leia-me": [
+    "Bloco OPCIONAL. Sem ele o integrador roda como antes: le o Holyrics e",
+    "publica eventos, sem comandar luz nenhuma.",
+    "",
+    "grupo  e o NOME do grupo como ele aparece no Freestyler, incluindo o",
+    "       prefixo numerico. Ex.: '03: Par Led'. A comparacao ignora",
+    "       maiusculas/minusculas e espacos nas pontas, mas NAO ignora acento.",
+    "       Nao ha endereco DMX nem offset de canal aqui de proposito: o",
+    "       Freestyler ja sabe o patch e responde quando perguntado.",
+    "",
+    "corDeRepouso  vale quando nao ha apresentacao. Preto apaga as fixtures.",
+    "              Obrigatoria quando ha grupo.",
+    "",
+    "heartbeatTimeoutMs  o Freestyler emite um pulso a cada ~1499ms. Minimo",
+    "                    4500 (tres pulsos); padrao 6000."
+  ],
+
+  "freestyler": {
+    "host": "localhost",
+    "port": 3332,
+    "grupo": "03: Par Led",
+    "corDeRepouso": { "r": 0, "g": 0, "b": 0 },
+    "heartbeatTimeoutMs": 6000
+  },
+
   "log": {
     "nivel": "info",
     "arquivo": "./logs/integrador.log",

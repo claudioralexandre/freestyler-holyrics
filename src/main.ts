@@ -26,10 +26,59 @@ import {
   type EstadoDeDisponibilidade,
 } from './service/availability.ts';
 import { criarPoller } from './service/poller.ts';
-import { criarRuntime } from './service/runtime.ts';
+import { criarRuntime, type Runtime } from './service/runtime.ts';
+import { criarCliente as criarClienteFreestyler } from './adapters/freestyler/client.ts';
+import { criarSaídaDMX } from './service/saida-dmx.ts';
+import type { Config } from './adapters/config.ts';
+import type { Logger } from 'pino';
 
 function dormir(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+type ConfigFreestyler = NonNullable<Config['freestyler']>;
+
+/**
+ * Sobe o consumidor de eventos que comanda o Freestyler.
+ *
+ * Reconexão, heartbeat e reaplicação entram aqui na fase seguinte; por ora o
+ * essencial: assinar os eventos e nunca deixar uma falha do Freestyler escapar
+ * para o ciclo de leitura (Princípio IV).
+ */
+function ligarSaídaDMX(
+  cfg: ConfigFreestyler,
+  runtime: Runtime,
+  log: Logger,
+): { fechar: () => void } {
+  const clienteFs = criarClienteFreestyler({
+    host: cfg.host,
+    port: cfg.port,
+    aoCair: () => log.warn({ host: cfg.host, port: cfg.port }, 'Freestyler caiu'),
+  });
+
+  const saída = criarSaídaDMX({
+    cliente: clienteFs,
+    parâmetros: { corDeRepouso: cfg.corDeRepouso, nomeDoGrupo: cfg.grupo },
+    log,
+  });
+
+  void clienteFs.conectar().then((r) => {
+    if (r.ok) log.info({ host: cfg.host, port: cfg.port }, 'Freestyler conectado');
+    else log.warn({ detalhe: r.detalhe }, 'Freestyler indisponível; seguindo sem comandar luz');
+  });
+
+  const cancelar = runtime.subscribe((evento) => {
+    void saída.aoEvento(evento);
+  });
+
+  log.info({ grupo: cfg.grupo }, 'saída DMX ativa');
+
+  return {
+    fechar: () => {
+      cancelar();
+      clienteFs.fechar();
+    },
+  };
 }
 
 function main(): void {
@@ -123,8 +172,16 @@ function main(): void {
     },
   });
 
+  // --- Saída DMX (feature 002) --------------------------------------------
+  // Opcional: sem o bloco `freestyler` na config, o integrador roda como a 001
+  // sozinha — lê, publica eventos e não comanda luz nenhuma.
+  const saída = config.freestyler ? ligarSaídaDMX(config.freestyler, runtime, log) : null;
+
   const encerrar = (sinal: string) => {
     log.info({ sinal }, 'encerrando');
+    // Encerrar é parar de comandar, não deixar um estado final (FR-028).
+    // Nenhuma cor é enviada aqui de propósito.
+    saída?.fechar();
     void poller.parar().then(() => process.exit(0));
   };
   process.on('SIGINT', () => encerrar('SIGINT'));

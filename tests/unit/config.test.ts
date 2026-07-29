@@ -184,3 +184,97 @@ describe('validação de configuração', () => {
     });
   });
 });
+
+describe('bloco freestyler (T018)', () => {
+  const comFreestyler = (parcial: Record<string, unknown> = {}) => ({
+    ...base(),
+    freestyler: {
+      host: 'localhost',
+      port: 3332,
+      grupo: '03: Par Led',
+      corDeRepouso: { r: 0, g: 0, b: 0 },
+      heartbeatTimeoutMs: 6000,
+      ...parcial,
+    },
+  });
+
+  it('aceita o bloco completo', () => {
+    expect(validarConfig(comFreestyler()).ok).toBe(true);
+  });
+
+  it('aceita a AUSÊNCIA do bloco — é o estado do projeto antes desta feature', () => {
+    expect(validarConfig(base()).ok).toBe(true);
+  });
+
+  it('usa padrão para host e porta, que seguem configuráveis (FR-023)', () => {
+    const c = comFreestyler();
+    delete (c.freestyler as Record<string, unknown>).host;
+    delete (c.freestyler as Record<string, unknown>).port;
+
+    const r = validarConfig(c);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.freestyler?.host).toBe('localhost');
+    expect(r.valor.freestyler?.port).toBe(3332);
+  });
+
+  it('exige corDeRepouso quando há grupo (FR-026a)', () => {
+    const c = comFreestyler();
+    delete (c.freestyler as Record<string, unknown>).corDeRepouso;
+
+    const r = validarConfig(c);
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erro).toMatch(/corDeRepouso/);
+  });
+
+  it('ACEITA preto como cor de repouso — é assim que se apaga (FR-026b)', () => {
+    const r = validarConfig(comFreestyler({ corDeRepouso: { r: 0, g: 0, b: 0 } }));
+
+    expect(r.ok).toBe(true);
+  });
+
+  it('recusa componente de cor fora de 0–255', () => {
+    expect(validarConfig(comFreestyler({ corDeRepouso: { r: 300, g: 0, b: 0 } })).ok).toBe(false);
+  });
+
+  it('recusa heartbeatTimeoutMs abaixo de 4500 (FR-021b)', () => {
+    // Dois batimentos de ~1499ms são 2998ms: margem de 2ms contra atraso de
+    // escalonamento é margem nenhuma.
+    const r = validarConfig(comFreestyler({ heartbeatTimeoutMs: 3000 }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erro).toMatch(/heartbeatTimeoutMs/);
+  });
+
+  it('aceita 4500 e usa 6000 como padrão', () => {
+    expect(validarConfig(comFreestyler({ heartbeatTimeoutMs: 4500 })).ok).toBe(true);
+
+    const c = comFreestyler();
+    delete (c.freestyler as Record<string, unknown>).heartbeatTimeoutMs;
+    const r = validarConfig(c);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.freestyler?.heartbeatTimeoutMs).toBe(6000);
+  });
+
+  it('NÃO aceita cor de repouso por fixture (FR-026d)', () => {
+    const r = validarConfig(
+      comFreestyler({ corDeRepouso: [{ fixture: 'Pl 1', r: 0, g: 0, b: 0 }] }),
+    );
+
+    expect(r.ok).toBe(false);
+  });
+
+  it('não vaza valores recebidos na mensagem de erro', () => {
+    const r = validarConfig(comFreestyler({ heartbeatTimeoutMs: 1234 }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erro).not.toMatch(/1234/);
+  });
+});

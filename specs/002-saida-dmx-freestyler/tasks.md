@@ -21,19 +21,19 @@ string.
 
 ## Phase 1 — Setup
 
-- [ ] T001 Criar `tests/fixtures/freestyler-responses.ts` com as respostas **reais** capturadas do FreeStyler 4.1.7, transcritas de [contracts/freestyler.md](contracts/freestyler.md): versão, nomes de grupos, status de grupos, nomes de fixtures, endereços e fixtures selecionadas
-- [ ] T002 [P] Estender `config/config.example.json` com o bloco `freestyler` conforme [contracts/config.md](contracts/config.md), com comentário explicando que `grupo` é o nome tal como aparece no Freestyler
+- [X] T001 Criar `tests/fixtures/freestyler-responses.ts` com as respostas **reais** capturadas do FreeStyler 4.1.7, transcritas de [contracts/freestyler.md](contracts/freestyler.md): versão, nomes de grupos, status de grupos, nomes de fixtures, endereços e fixtures selecionadas
+- [X] T002 [P] Estender `config/config.example.json` com o bloco `freestyler` conforme [contracts/config.md](contracts/config.md), com comentário explicando que `grupo` é o nome tal como aparece no Freestyler
 
 ## Phase 2 — Fundação: o formato de fio
 
 Bloqueia tudo o mais. Sem codificar e decodificar corretamente, nenhuma outra
 tarefa é verificável.
 
-- [ ] T003 Escrever `tests/unit/protocolo.test.ts` para a **codificação** `FSOC`: código e argumento com zero à esquerda em 3 casas; `FSOC002255` blackout; `FSOC130255` e `FSOC130000` slot de cor; `FSOC036255` grupo 3; código de 3 dígitos acima de 99 (grupo 11 = 550). Confirmar RED
-- [ ] T004 Implementar a codificação `FSOC` em `src/adapters/freestyler/protocolo.ts`
-- [ ] T005 Escrever em `tests/unit/protocolo.test.ts` os testes de **decodificação** `FSBC`: envelope `FSBC` + byte de contagem + `,` + valores; lista de nomes com posições vazias; lista de inteiros; valor único (versão, master intensity); resposta truncada ou fora de formato vira falha, nunca exceção. Confirmar RED
-- [ ] T006 Implementar a decodificação `FSBC` em `src/adapters/freestyler/protocolo.ts`
-- [ ] T007 Escrever teste de que o heartbeat `0xFF` **não** é confundido com resposta de consulta (FR-021c). Confirmar RED, depois implementar a separação em `protocolo.ts`
+- [X] T003 Escrever `tests/unit/protocolo.test.ts` para a **codificação** `FSOC`: código e argumento com zero à esquerda em 3 casas; `FSOC002255` blackout; `FSOC130255` e `FSOC130000` slot de cor; `FSOC036255` grupo 3; código de 3 dígitos acima de 99 (grupo 11 = 550). Confirmar RED
+- [X] T004 Implementar a codificação `FSOC` em `src/adapters/freestyler/protocolo.ts`
+- [X] T005 Escrever em `tests/unit/protocolo.test.ts` os testes de **decodificação** `FSBC`: envelope `FSBC` + byte de contagem + `,` + valores; lista de nomes com posições vazias; lista de inteiros; valor único (versão, master intensity); resposta truncada ou fora de formato vira falha, nunca exceção. Confirmar RED
+- [X] T006 Implementar a decodificação `FSBC` em `src/adapters/freestyler/protocolo.ts`
+- [X] T007 Escrever teste de que o heartbeat `0xFF` **não** é confundido com resposta de consulta (FR-021c). Confirmar RED, depois implementar a separação em `protocolo.ts`
 
 ## Phase 3 — US1: a luz assume a cor do telão (P1)
 
@@ -44,13 +44,13 @@ grupo assumir a cor, sem Holyrics.
 
 ### Núcleo — resolução de grupo
 
-- [ ] T008 [US1] Escrever `tests/unit/grupo.test.ts` para `resolverGrupo`: casa exato; casa ignorando caixa; casa ignorando espaço nas pontas; **não** casa ignorando acento (FR-009b); `nao_encontrado` com a lista de candidatos (FR-010); `ambiguo` quando dois grupos casam (FR-009c); ignora posições vazias do array de 24. Confirmar RED
-- [ ] T009 [US1] Implementar `resolverGrupo` em `src/core/grupo.ts` (FR-008, FR-009a)
+- [X] T008 [US1] Escrever `tests/unit/grupo.test.ts` para `resolverGrupo`: casa exato; casa ignorando caixa; casa ignorando espaço nas pontas; **não** casa ignorando acento (FR-009b); `nao_encontrado` com a lista de candidatos (FR-010); `ambiguo` quando dois grupos casam (FR-009c); ignora posições vazias do array de 24. Confirmar RED
+- [X] T009 [US1] Implementar `resolverGrupo` em `src/core/grupo.ts` (FR-008, FR-009a)
 
 ### Núcleo — a semântica de toggle
 
-- [ ] T010 [US1] Escrever em `tests/unit/grupo.test.ts` os testes de `precisaSelecionar`: grupo já ativo no status → **não** enviar; grupo inativo → enviar; outro grupo ativo → enviar apenas o nosso, nunca desativar o outro (FR-012a-2); chamada duas vezes com o mesmo status produz o mesmo resultado (FR-012a-1). Confirmar RED
-- [ ] T011 [US1] Implementar `precisaSelecionar` em `src/core/grupo.ts` (FR-012a)
+- [X] T010 [US1] Escrever em `tests/unit/grupo.test.ts` os testes de `precisaSelecionar`: grupo já ativo no status → **não** enviar; grupo inativo → enviar; outro grupo ativo → enviar apenas o nosso, nunca desativar o outro (FR-012a-2); chamada duas vezes com o mesmo status produz o mesmo resultado (FR-012a-1). Confirmar RED
+- [X] T011 [US1] Implementar `precisaSelecionar` em `src/core/grupo.ts` (FR-012a)
 
 > **Tarefa de maior risco da feature.** A versão errada — enviar sempre "por
 > garantia" — apagaria a luz em toda aplicação par, e o sintoma no palco seria
@@ -58,28 +58,28 @@ grupo assumir a cor, sem Holyrics.
 
 ### Núcleo — do evento para a intenção
 
-- [ ] T012 [US1] Escrever `tests/unit/saida.test.ts` para `aplicarEvento`: `cor_anunciada` define `corPretendida` e marca `jáHouveCor` (FR-002); `tema_trocado`, `item_trocado`, `apresentacao_iniciada` e `slide_mudou` **não** alteram `corPretendida` (FR-003, FR-006); `holyrics_perdido` mantém a cor (FR-005). Confirmar RED
-- [ ] T013 [US1] Implementar `aplicarEvento` em `src/core/saida.ts` — pura, sem noção de rede (FR-015a)
+- [X] T012 [US1] Escrever `tests/unit/saida.test.ts` para `aplicarEvento`: `cor_anunciada` define `corPretendida` e marca `jáHouveCor` (FR-002); `tema_trocado`, `item_trocado`, `apresentacao_iniciada` e `slide_mudou` **não** alteram `corPretendida` (FR-003, FR-006); `holyrics_perdido` mantém a cor (FR-005). Confirmar RED
+- [X] T013 [US1] Implementar `aplicarEvento` em `src/core/saida.ts` — pura, sem noção de rede (FR-015a)
 
 ### Núcleo — da intenção para as ações
 
-- [ ] T014 [US1] Escrever em `tests/unit/saida.test.ts` os testes de `planejarEnvio`: sem divergência entre pretendida e escrita → lista vazia (FR-015); com divergência e `mesa === null` → `ler_mesa`; com `mesa` lida e grupo `null` → `resolver_grupo`; grupo resolvido e inativo → `garantir_selecao` seguido de `confirmar_selecao` (FR-015c); tudo resolvido → `escrever_cor`. Confirmar RED
-- [ ] T015 [US1] Implementar `planejarEnvio` em `src/core/saida.ts`, devolvendo só a lista de ações, sem executar nada (Princípio II)
-- [ ] T016 [US1] Escrever teste de que uma aplicação de cor produz um **número fixo e pequeno** de comandos — seleção mais um por slot — e que esse número **não cresce** com o tamanho do grupo (FR-014). Confirmar RED, depois ajustar se necessário
-- [ ] T017 [US1] Escrever teste de que `planejarEnvio` **nunca** produz ação de restaurar seleção anterior, qualquer que seja o status lido (FR-012c). Confirmar RED
+- [X] T014 [US1] Escrever em `tests/unit/saida.test.ts` os testes de `planejarEnvio`: sem divergência entre pretendida e escrita → lista vazia (FR-015); com divergência e `mesa === null` → `ler_mesa`; com `mesa` lida e grupo `null` → `resolver_grupo`; grupo resolvido e inativo → `garantir_selecao` seguido de `confirmar_selecao` (FR-015c); tudo resolvido → `escrever_cor`. Confirmar RED
+- [X] T015 [US1] Implementar `planejarEnvio` em `src/core/saida.ts`, devolvendo só a lista de ações, sem executar nada (Princípio II)
+- [X] T016 [US1] Escrever teste de que uma aplicação de cor produz um **número fixo e pequeno** de comandos — seleção mais um por slot — e que esse número **não cresce** com o tamanho do grupo (FR-014). Confirmar RED, depois ajustar se necessário
+- [X] T017 [US1] Escrever teste de que `planejarEnvio` **nunca** produz ação de restaurar seleção anterior, qualquer que seja o status lido (FR-012c). Confirmar RED
 
 ### Configuração
 
-- [ ] T018 [US1] Escrever em `tests/unit/config.test.ts` as validações novas: `corDeRepouso` exigida quando há `grupo` (FR-026a); **preto é valor válido** (FR-026b); `corDeRepouso` é única, não aceita por fixture (FR-026d); `heartbeatTimeoutMs` mínimo 4500 (FR-021b); `host` e `port` configuráveis com padrão (FR-023); bloco ausente é válido. Confirmar RED
-- [ ] T019 [US1] Estender `src/adapters/config.ts` com o schema `zod` do bloco `freestyler`, no mesmo arquivo da 001 (FR-022)
+- [X] T018 [US1] Escrever em `tests/unit/config.test.ts` as validações novas: `corDeRepouso` exigida quando há `grupo` (FR-026a); **preto é valor válido** (FR-026b); `corDeRepouso` é única, não aceita por fixture (FR-026d); `heartbeatTimeoutMs` mínimo 4500 (FR-021b); `host` e `port` configuráveis com padrão (FR-023); bloco ausente é válido. Confirmar RED
+- [X] T019 [US1] Estender `src/adapters/config.ts` com o schema `zod` do bloco `freestyler`, no mesmo arquivo da 001 (FR-022)
 
 ### Adaptador e serviço
 
-- [ ] T020 [US1] Implementar `src/adapters/freestyler/client.ts`: socket TCP sobre `node:net`, `conectar`, `enviar`, `consultar`, `fechar`. Sem regra de negócio, **sem `process.on` global** — o oposto do que a biblioteca faz (Princípio IV)
-- [ ] T021 [US1] Implementar `src/service/saida-dmx.ts`: assinar `subscribe()` da 001 (FR-001), chamar `aplicarEvento` e `planejarEnvio`, executar as ações na ordem, com envios serializados (FR-016)
-- [ ] T022 [US1] Implementar a execução de `confirmar_selecao`: reler o status e só então escrever cor; seleção não confirmada é falha de envio (FR-015c)
-- [ ] T023 [US1] Ligar a saída em `src/main.ts`, atrás da presença do bloco `freestyler` na config
-- [ ] T024 [US1] Implementar o log de aplicação de cor em nível detalhado: cor de origem, grupo e valor de cada slot (FR-024, SC-007)
+- [X] T020 [US1] Implementar `src/adapters/freestyler/client.ts`: socket TCP sobre `node:net`, `conectar`, `enviar`, `consultar`, `fechar`. Sem regra de negócio, **sem `process.on` global** — o oposto do que a biblioteca faz (Princípio IV)
+- [X] T021 [US1] Implementar `src/service/saida-dmx.ts`: assinar `subscribe()` da 001 (FR-001), chamar `aplicarEvento` e `planejarEnvio`, executar as ações na ordem, com envios serializados (FR-016)
+- [X] T022 [US1] Implementar a execução de `confirmar_selecao`: reler o status e só então escrever cor; seleção não confirmada é falha de envio (FR-015c)
+- [X] T023 [US1] Ligar a saída em `src/main.ts`, atrás da presença do bloco `freestyler` na config
+- [X] T024 [US1] Implementar o log de aplicação de cor em nível detalhado: cor de origem, grupo e valor de cada slot (FR-024, SC-007)
 
 **Checkpoint**: cenário 6 do quickstart. Cobre **SC-001**, **SC-002** e
 **SC-007**.

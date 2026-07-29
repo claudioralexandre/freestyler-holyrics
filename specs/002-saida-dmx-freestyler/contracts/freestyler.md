@@ -50,8 +50,31 @@ FSBC + código(3 dígitos) + 000
 O FreeStyler **responde**:
 
 ```
-FSBC + <byte com a contagem de itens> + "," + valores separados por vírgula
+FSBC + <byte de contagem> + "," + valores separados por vírgula
 ```
+
+> ### ⚠️ O byte de contagem NÃO é confiável
+>
+> Medido em 2026-07-29, contando os campos após separar por vírgula e descartar
+> o vazio inicial:
+>
+> | Consulta | Byte | Campos reais |
+> |---|---|---|
+> | `FSBC008000` grupos | 23 | **24** |
+> | `FSBC009000` status | 24 | **25** |
+> | `FSBC017000` fixtures | 15 | 15 |
+> | `FSBC018000` endereços | 15 | 15 |
+>
+> Nas duas respostas de grupo ele vem **um a menos** que os campos; nas de
+> fixture, bate. Não há explicação observada para a diferença.
+>
+> **Consequência**: o decodificador MUST separar por vírgula e indexar
+> posicionalmente, e MUST NOT usar o byte para fatiar nem para validar tamanho.
+> Usá-lo produziria erro de um justamente onde importa — a posição do grupo a
+> selecionar.
+>
+> A indexação posicional está **verificada**: com "03: Par Led" selecionado, o
+> índice 2 (base zero, após descartar o campo vazio inicial) é o que vale `1`.
 
 ## Consultas verificadas
 

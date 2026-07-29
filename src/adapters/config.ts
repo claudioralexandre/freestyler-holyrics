@@ -17,6 +17,18 @@ export type NívelDeLog = (typeof NÍVEIS_DE_LOG)[number];
 /** Teto do intervalo entre tentativas, imposto pelo prazo do SC-005. */
 const TETO_RECONEXAO_MS = 30_000;
 
+/**
+ * Cor declarada na configuração, componentes 0–255.
+ *
+ * Preto é valor válido e significa apagar as fixtures (FR-026b) — é o caso que
+ * uma validação ingênua de "cor obrigatória" rejeitaria por engano.
+ */
+const corConfigurada = z.object({
+  r: z.int().min(0).max(255),
+  g: z.int().min(0).max(255),
+  b: z.int().min(0).max(255),
+});
+
 const esquema = z.object({
   holyrics: z.object({
     host: z.string().min(1),
@@ -42,6 +54,29 @@ const esquema = z.object({
     tamanhoMaximoMb: z.number().positive(),
     arquivosMantidos: z.int().min(1),
   }),
+  /**
+   * Saída DMX (feature 002). **Opcional**: sem este bloco o integrador roda como
+   * a 001 sozinha — lê o Holyrics, publica eventos e não comanda luz nenhuma.
+   *
+   * Note o que NÃO está aqui: endereço DMX, offsets de canal, lista de
+   * fixtures, universo. O Freestyler já sabe o patch e responde quando
+   * perguntado; duplicá-lo em arquivo criaria uma segunda fonte de verdade
+   * para divergir da primeira (FR-009).
+   */
+  freestyler: z
+    .object({
+      host: z.string().min(1).default('localhost'),
+      port: z.int().min(1).max(65535).default(3332),
+      /** Nome do grupo tal como aparece no Freestyler, ex.: "03: Par Led". */
+      grupo: z.string().min(1),
+      corDeRepouso: corConfigurada,
+      /**
+       * O pulso do Freestyler é de ~1499 ms. Três batimentos são 4497 ms; abaixo
+       * disso qualquer atraso de escalonamento vira falsa queda (FR-021b).
+       */
+      heartbeatTimeoutMs: z.int().min(4500).default(6000),
+    })
+    .optional(),
 });
 
 export type Config = z.infer<typeof esquema>;
