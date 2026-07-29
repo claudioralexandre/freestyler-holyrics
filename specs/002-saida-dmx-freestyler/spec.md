@@ -268,12 +268,12 @@ nomeada e confirmar no salão qual luminária respondeu.
 - **FR-013**: O integrador MUST NOT implementar transição temporizada própria
   entre a cor anterior e a nova. Cada mudança de cor é um envio único; qualquer
   suavização é responsabilidade do Freestyler.
-- **FR-013a**: Se o Freestyler oferecer controle de fade próprio, o sistema MUST
-  permitir configurá-lo e MUST se limitar a acioná-lo — nunca a emular o efeito
-  por envios sucessivos. Enquanto essa capacidade não for verificada contra o
-  Freestyler real, o comportamento observável MUST ser o salto instantâneo, e a
-  suposição MUST estar marcada como não verificada no código que a assume
-  (Princípio I).
+- **FR-013a**: O comportamento observável MUST ser o **salto instantâneo**.
+  **Verificado**: o protocolo do Freestyler é emulação de teclas e expõe apenas
+  seleção de canal, atribuição de valor e alternância de blackout. Não há
+  comando de fade alcançável por esse caminho. A opção "delegar a transição ao
+  Freestyler", escolhida na clarificação, **não existe na prática** — e emular o
+  efeito por envios sucessivos permanece proibido por FR-013.
 
 #### Envio ao Freestyler
 
@@ -282,9 +282,14 @@ nomeada e confirmar no salão qual luminária respondeu.
 - **FR-015**: O sistema MUST NOT enviar comando quando os valores resultantes
   forem idênticos ao **último conjunto entregue com sucesso**.
 - **FR-015a**: O sistema MUST distinguir a **cor pretendida** — a que deveria
-  estar valendo agora — do **último conjunto entregue com sucesso** — o que o
-  sistema conseguiu confirmar que saiu. Divergência entre as duas é a condição
-  que dispara reenvio.
+  estar valendo agora — do **último conjunto escrito** — o que saiu pelo socket
+  sem o TCP reclamar. Divergência entre as duas é a condição que dispara
+  reenvio.
+- **FR-015b**: O sistema MUST NOT afirmar, em log ou em estado, que uma cor foi
+  *entregue* ou *confirmada*. **Verificado**: o Freestyler não devolve
+  confirmação alguma — nem para comando válido, nem para canal inexistente, nem
+  para lixo puro. O vocabulário do sistema MUST refletir o que é observável
+  ("escrito"), não o que se gostaria de saber ("entregue").
 - **FR-016**: Os envios MUST ser serializados. Nenhum envio começa antes de o
   anterior terminar.
 - **FR-017**: Quando uma nova cor chega durante um envio em curso, o sistema MUST
@@ -306,7 +311,7 @@ nomeada e confirmar no salão qual luminária respondeu.
   fixtures seguidoras, sem reproduzir as cores que passaram durante a
   indisponibilidade.
 - **FR-029**: Um envio fatiado MUST ser tratado como tudo-ou-nada. Falha em
-  qualquer lote MUST NOT avançar o último conjunto entregue, mesmo que lotes
+  qualquer lote MUST NOT avançar o último conjunto escrito, mesmo que lotes
   anteriores tenham saído.
 - **FR-029a**: Após falha de envio, o sistema MUST reagendar o envio completo da
   cor pretendida **mesmo sem queda de conexão** — um lote pode se perder com o
@@ -317,6 +322,17 @@ nomeada e confirmar no salão qual luminária respondeu.
   em duas cores seja diagnosticável pelo log.
 - **FR-021**: O sistema MUST registrar em log as transições de disponibilidade do
   Freestyler uma vez por transição, não a cada tentativa.
+- **FR-021a**: O sistema MUST tratar a **ausência de heartbeat** como perda de
+  disponibilidade do Freestyler, sem esperar por falha de escrita.
+  **Verificado**: o Freestyler emite um byte `0xFF` a cada ~1499 ms,
+  independentemente do tráfego. Um socket TCP aberto não denuncia uma mesa
+  travada — os `write` continuam "funcionando" para o vazio, possivelmente para
+  sempre. O heartbeat é o único sinal de saúde disponível.
+- **FR-021b**: A janela de tolerância antes de declarar perda MUST ser
+  configurável e MUST acomodar pelo menos dois batimentos perdidos, para não
+  transformar atraso de escalonamento em falsa queda.
+- **FR-021c**: O sistema MUST NOT interpretar o heartbeat como confirmação de
+  comando. Ele chega no ritmo próprio, mesmo sem tráfego algum (FR-015b).
 - **FR-028**: Ao receber pedido de encerramento, o sistema MUST NOT comandar
   fixture alguma. As seguidoras permanecem no último valor enviado. Encerrar é
   parar de comandar, não deixar um estado final.
@@ -445,11 +461,21 @@ nomeada e confirmar no salão qual luminária respondeu.
   conector expõe controle de fade. Enquanto isso, o comportamento especificado e
   testável é o salto instantâneo; a capacidade de acionar fade só entra depois
   de verificada, e sem virar emulação por envios sucessivos.
-- **O contrato do Freestyler continua não verificado.** Tudo que se sabe do
-  conector veio de documentação pública: a porta 3332, o formato `FSOC{n}255`
-  emulando teclas, o limite de ~100 valores por lote. Pelo Princípio I, o código
-  que assumir esses valores MUST carregar a marcação de não verificado até haver
-  observação contra o Freestyler real.
+- **O contrato do Freestyler foi verificado em 2026-07-28** contra a ferramenta
+  real, com uma fixture RGB nos canais 1–3 respondendo corretamente a comandos
+  individuais e em lote. Registro completo em
+  [contracts/freestyler.md](contracts/freestyler.md). O formato de fio deixou de
+  ser suposição.
+- **A biblioteca `freestyler_node_connector` não será usada.** Ela registra
+  `process.on('uncaughtException', … process.exit())`, o que daria a um pacote
+  parado desde 2015 o poder de derrubar o serviço — inaceitável sob o Princípio
+  IV. Também fixa a porta 3332 no código, contrariando FR-023. O protocolo é
+  implementado direto sobre `node:net`, e o repositório dela fica citado como
+  fonte do formato.
+- **O limite de ~100 valores por lote continua sendo herança de terceiros.** Vem
+  de um comentário no código da biblioteca, num trecho que está desabilitado. O
+  maior lote testado aqui foi de 20 comandos, sem engasgo. FR-014 segue valendo
+  por prudência, mas o número não é observação nossa.
 - **O teto de reconexão e o intervalo inicial** seguem o que já foi decidido na
   001 para o Holyrics, salvo evidência de que o Freestyler precisa de outro
   ritmo. O mesmo vale para o reagendamento de envio após falha (FR-029a).
