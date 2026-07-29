@@ -4,11 +4,19 @@
     "O token NÃO vem daqui: use a variável de ambiente HOLYRICS_TOKEN.",
     "CONFIG_PATH sobrepõe o caminho deste arquivo; LOG_LEVEL sobrepõe log.nivel.",
     "",
-    "AINDA NÃO CALIBRADOS — os três valores abaixo são chute declarado e só podem",
-    "ser definidos observando o Holyrics real (ver quickstart.md, cenarios 4 e 5):",
-    "  leitura.regiao          qual das 8 posicoes do color map representa o tema",
-    "  cor.limiarDeltaE        acima do ruido do fundo, abaixo da troca real de tema",
-    "  holyrics.requestTimeoutMs  depende da latencia medida contra localhost"
+    "CALIBRADOS em 2026-07-28 contra Holyrics 2.29.1. Ver contracts/holyrics-api.md.",
+    "  leitura.regiao   0 — das 8 posicoes, a mais proxima do centroide das cores",
+    "                   do tema. As 4 regioes de indice 0,2,4,6,7 ficam na metade",
+    "                   de cima; 1 e 3 sao as mais escuras, 5 a mais clara.",
+    "  cor.limiarDeltaE 2 — o ruido medido foi ZERO. O color map nao acompanha",
+    "                   quadro de video nem troca de slide: ele muda so quando o",
+    "                   TEMA muda. Logo o limiar nao filtra ruido, so descarta",
+    "                   troca de tema imperceptivel. 2 e o limite do perceptivel.",
+    "  holyrics.requestTimeoutMs 800 — latencia medida foi 1,5ms na LAN. Folga",
+    "                   deliberada, nao chute.",
+    "  cor.ciclosDeConfirmacao 2 — mantido como seguro barato. Com ruido zero, 1",
+    "                   bastaria; 2 custa 1s e protege se uma versao futura passar",
+    "                   a amostrar por quadro."
   ],
 
   "holyrics": {
@@ -23,7 +31,7 @@
   },
 
   "cor": {
-    "limiarDeltaE": 10,
+    "limiarDeltaE": 2,
     "ciclosDeConfirmacao": 2
   },
 
