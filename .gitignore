@@ -7,6 +7,16 @@
 node_modules/
 dist/
 
+# Relatório de cobertura: artefato gerado por `vitest --coverage`.
+# Esteve versionado até 31/07/2026 e saiu por três razões:
+#   1. O vitest LIMPA este diretório antes de escrever, então toda execução de
+#      cobertura aparecia como 32 arquivos deletados no `git status`.
+#   2. Envelhece na hora — o retrato commitado era de uma suíte de 188 testes,
+#      quando ela já passava de 270.
+#   3. É reconstrutível: `npx vitest run --coverage`.
+# O relatório antigo continua no histórico, em 861eda4.
+coverage/
+
 # Configuração real do integrador — contém host/porta desta instalação.
 # O token vive em variável de ambiente, nunca aqui. Versionado: config.example.json
 config/config.json
