@@ -14,6 +14,7 @@ import {
 } from './adapters/logger.ts';
 import { criarCliente } from './adapters/holyrics/client.ts';
 import { casarTag, referênciaÉDeOverride } from './core/override.ts';
+import { criarPainelDeCor } from './adapters/console.ts';
 import {
   ESTADO_INICIAL,
   aplicarCiclo,
@@ -186,6 +187,12 @@ function main(): void {
         'consumidor falhou ao tratar evento; ciclo segue',
       ),
   });
+
+  // Uma linha legível por troca de cor, direto no terminal. Independe da saída
+  // DMX: mesmo sem Freestyler configurado, é ela que mostra qual cor o
+  // integrador assumiu — o JSON do pino não se lê de relance durante um culto.
+  const painel = criarPainelDeCor();
+  runtime.subscribe((evento) => painel.aoEvento(evento));
 
   const parâmetros: ParâmetrosDoNúcleo = {
     regiao: config.leitura.regiao,
