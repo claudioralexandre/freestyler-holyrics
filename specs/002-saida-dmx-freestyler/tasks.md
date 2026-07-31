@@ -143,9 +143,9 @@ Exigem Freestyler e Holyrics rodando.
 
 ## Phase 9 — Documentação
 
-- [ ] T057 [P] Atualizar `README.md`: configuração por nome de grupo, o que aparece no log, e o efeito colateral de a seleção da mesa mudar (FR-012b)
-- [ ] T058 [P] Atualizar `CLAUDE.md`: estado das duas features e pendências restantes
-- [ ] T059 [P] Atualizar os scripts de operação se a configuração nova exigir passo adicional
+- [X] T057 [P] Atualizar `README.md`: configuração por nome de grupo, o que aparece no log, e o efeito colateral de a seleção da mesa mudar (FR-012b)
+- [X] T058 [P] Atualizar `CLAUDE.md`: estado das duas features e pendências restantes
+- [X] T059 [P] Atualizar os scripts de operação se a configuração nova exigir passo adicional
 
 ---
 
@@ -195,6 +195,7 @@ ser incompleto; não pode ser incorreto.
 | SC-009 | T042 + cenário 3 |
 | SC-010 | Checkpoint da Phase 7 + T044 |
 | SC-011 | T032, T052 |
+| SC-012 | T066 + cenário 3 |
 
 ## Contagem
 
@@ -209,7 +210,9 @@ ser incompleto; não pode ser incorreto.
 | 7 — Envio robusto | 7 |
 | 8 — Verificação real | 6 |
 | 9 — Documentação | 3 |
-| **Total** | **59** |
+| 10 — Convergência | 3 |
+| 11 — Emenda de 31/07 | 5 |
+| **Total** | **67** |
 
 ## Phase 10: Convergence
 
@@ -219,3 +222,15 @@ Lacunas encontradas ao avaliar o código contra spec, plan e constitution, e que
 - [X] T060 Registrar em nível **info** a aplicação de cor e as entradas e saídas de repouso, mantendo o detalhe por slot em debug, per FR-025 (partial) — hoje `cor escrita` só existe em `log.debug`, então num culto com log normal nada indica que a luz foi comandada
 - [X] T061 Chamar `invalidarGrupo()` na reconexão ao Freestyler, para que o grupo seja reverificado, per FR-011 (partial) — o método existe em `src/service/saida-dmx.ts` e não tem nenhum chamador; sem isso, um grupo renomeado enquanto a mesa esteve fora nunca é redetectado
 - [X] T062 **CRITICAL para o Princípio IV**: mover o registro de `process.on('uncaughtException')` e `process.on('unhandledRejection')` em `src/main.ts` para **antes** da montagem da saída DMX, per Constitution IV (partial) — hoje a saída sobe em `main.ts:178` e os handlers só entram em `main.ts:192`, então uma exceção durante a montagem derruba o processo
+
+## Phase 11 — Emenda da spec de 2026-07-31
+
+A sessão de clarificação de 31/07 acrescentou três requisitos e um critério de
+sucesso depois de a lista acima estar fechada. FR-008a descreve comportamento que
+o esquema de configuração **já tinha**; os outros dois são código novo.
+
+- [X] T063 Escrever teste de que o bloco `freestyler` presente sem `grupo` é recusado na subida, e de que o bloco ausente por inteiro segue aceito (FR-008a). Confirmar se já passa — é requisito que documenta comportamento existente, e o teste é a prova de que documenta certo
+- [X] T064 Escrever teste de `consultaTimeoutMs`: padrão declarado, e recusa quando passa da metade de `heartbeatTimeoutMs` (FR-023a). Confirmar RED
+- [X] T065 Implementar `consultaTimeoutMs` no esquema de `src/adapters/config.ts`, com a validação entre campos, e ligá-lo ao cliente em `src/main.ts` — hoje o prazo existe em `client.ts` com padrão fixo, fora do alcance do operador
+- [X] T066 Escrever teste de que a seleção efetivada consulta `FSBC023000` e registra quantas e quais fixtures foram atingidas, e de que nenhuma atingida vira aviso (FR-025b, SC-012). Confirmar RED
+- [X] T067 Implementar a consulta de fixtures selecionadas em `src/service/saida-dmx.ts`, reaproveitando os nomes lidos no inventário e acontecendo **por seleção efetivada**, nunca por aplicação de cor

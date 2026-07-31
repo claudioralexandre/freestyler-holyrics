@@ -65,6 +65,14 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
   let emAndamento: Promise<void> = Promise.resolve();
   let avisouEspera = false;
   let últimaFalhaDeResolução = '';
+  /**
+   * Nomes das fixtures, lidos no inventário (`FSBC017000`).
+   *
+   * Guardados para que a linha da seleção diga **quais** fixtures foram
+   * atingidas sem custar uma consulta a mais por seleção. Vazio até o primeiro
+   * inventário — aí a linha reporta posição em vez de nome.
+   */
+  let nomesDeFixtures: readonly string[] = [];
 
   async function lerMesa(): Promise<LeituraDaMesa | null> {
     const grupos = await cliente.consultar(CODIGO.nomesDeGrupos);
@@ -78,6 +86,54 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
       // documenta outros valores e supor otimista aqui apagaria a luz.
       statusDosGrupos: status.valor.campos.map((c) => c.trim() === '1'),
     };
+  }
+
+  /**
+   * Registra quais fixtures a seleção efetivada atingiu (FR-025b).
+   *
+   * O grupo existente mas vazio produz o mesmo sintoma que o integrador
+   * quebrado: luz parada. O inventário de FR-025a lista a mesa inteira e não
+   * distingue os dois; esta consulta, feita logo após a seleção, distingue.
+   *
+   * Acontece por **seleção efetivada**, não por aplicação de cor: em um culto
+   * inteiro tende a ser uma consulta só, então não entra no caminho quente
+   * (FR-014).
+   *
+   * Falha de leitura aqui **não** aborta o ciclo. Isto é diagnóstico, não
+   * pré-condição de aplicar cor — deixar a luz parada porque o log não pôde ser
+   * escrito seria trocar o problema pelo pior.
+   */
+  async function registrarFixturesAtingidas(): Promise<void> {
+    const r = await cliente.consultar(CODIGO.fixturesSelecionadas);
+    if (!r.ok) {
+      log.warn(
+        { motivo: r.motivo, detalhe: r.detalhe, grupo: estado.grupo?.nomeReal },
+        'não foi possível ler quais fixtures a seleção atingiu',
+      );
+      return;
+    }
+
+    // Posicional com `FSBC017000`: a n-ésima marca corresponde ao n-ésimo nome.
+    const atingidas = r.valor.campos
+      .map((v, i) => (v.trim() === '1' ? (nomesDeFixtures[i] ?? `#${i + 1}`) : null))
+      .filter((n): n is string => n !== null);
+
+    if (atingidas.length === 0) {
+      log.warn(
+        { grupo: estado.grupo?.nomeReal, fixturesAtingidas: 0 },
+        'grupo seguidor existe mas está vazio — nenhuma fixture recebe a cor',
+      );
+      return;
+    }
+
+    log.info(
+      {
+        grupo: estado.grupo?.nomeReal,
+        fixturesAtingidas: atingidas.length,
+        fixtures: atingidas,
+      },
+      'seleção efetivada',
+    );
   }
 
   function relatarFalhaDeResolução(chave: string, mensagem: string, extra: object): void {
@@ -176,6 +232,7 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
             log.warn({ grupo: estado.grupo?.nomeReal }, 'seleção de grupo não confirmada');
             return;
           }
+          await registrarFixturesAtingidas();
           continue;
         }
 
@@ -216,6 +273,9 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
 
       const nomes = fixtures.ok ? fixtures.valor.campos : [];
       const ends = endereços.ok ? endereços.valor.campos : [];
+      // Reaproveitados pela linha da seleção (FR-025b), que assim não precisa
+      // consultar os nomes de novo a cada troca de grupo.
+      nomesDeFixtures = nomes;
 
       log.info(
         {

@@ -116,6 +116,30 @@ Perguntas de fato ao usuário, nesta sessão:
   e a subida é quando o operador está configurando o Freestyler. O integrador
   passa a esperar a primeira cor real antes de tocar na mesa.
 
+### Session 2026-07-31
+
+- Q: Depois de selecionar o grupo seguidor, o integrador consulta quais fixtures
+  ficaram selecionadas para registrar no log? → A: Sim (FR-025b). O grupo vazio
+  tem o mesmo sintoma que o integrador quebrado — luz parada — e a consulta que o
+  distingue já está verificada. O custo é uma consulta por seleção efetivada, não
+  por aplicação de cor.
+- Q: Quanto tempo o integrador espera pela resposta de uma consulta ao
+  Freestyler, e isso é configurável? → A: Configurável, com padrão declarado e
+  teto ligado à janela de heartbeat (FR-023a). Mesmo desenho que a 001 já usa para
+  o Holyrics. Sem prazo declarado, uma consulta sem resposta trava a saída
+  inteira, porque ler o status do grupo é pré-condição de toda aplicação de cor.
+- Q: A constitution ainda exige fatiamento em lotes de ~100 valores, regra que
+  FR-014 removeu. Qual texto muda? → A: A constitution, por emenda PATCH,
+  atribuindo o limite ao caminho por canal cru e preservando a regra de não
+  saturar o socket. Enquanto a emenda não sai em mudança dedicada — como a
+  governança exige —, FR-014 fica registrado aqui como divergência conhecida, com
+  resolução já decidida.
+- Q: Qual configuração significa "não comandar luz nenhuma"? → A: O bloco
+  `freestyler` ausente por inteiro (FR-008a). Com o bloco presente, o nome do
+  grupo é obrigatório e sua ausência é erro de configuração, não modo de operação.
+  Duas formas de dizer "desligado" tornariam indistinguíveis o operador que
+  desligou de propósito e o que esqueceu de preencher o nome.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A luz assume a cor do telão (Priority: P1)
@@ -262,8 +286,9 @@ log diz exatamente isso, listando os nomes válidos.
   reconexão. O serviço segue rodando e registra o nome procurado com a lista dos
   existentes; não comanda luz até resolver (FR-010, FR-010a, FR-011).
 - **Grupo existe mas está vazio.** Selecionar funciona, colorir não atinge
-  ninguém. Não é erro do integrador — mas o log deve permitir notar, porque o
-  sintoma é luz parada.
+  ninguém. Não é erro do integrador, mas é indistinguível de defeito a olho nu —
+  por isso a seleção efetivada registra quais fixtures ela atingiu, e nenhuma
+  atingida vira aviso explícito (FR-025b).
 - **Operador selecionando outro grupo na mesa.** O integrador seleciona o seu
   antes de cada aplicação (FR-012a), então a cor não vaza. Em compensação, a
   seleção visível do operador muda sozinha (FR-012b).
@@ -272,8 +297,9 @@ log diz exatamente isso, listando os nomes válidos.
 - **`cor_anunciada` chegando enquanto o envio anterior ainda está em curso.** Os
   envios não se sobrepõem; a cor mais recente prevalece sobre uma intermediária
   que ainda não saiu.
-- **Nenhum grupo declarado como seguidor.** É configuração legítima — o serviço
-  sobe, consome eventos e não comanda nada.
+- **Bloco de configuração do Freestyler ausente.** É configuração legítima — o
+  serviço sobe, consome eventos e não comanda nada (FR-008a). Já o bloco presente
+  sem nome de grupo é erro de configuração, recusado na subida.
 - **Freestyler travado com o socket aberto.** Não é detectável por falha de
   escrita. A ausência de heartbeat é o que denuncia (FR-021a).
 - **Evento `slide_mudou`.** Não produz efeito nesta feature, por decisão
@@ -317,9 +343,18 @@ log diz exatamente isso, listando os nomes válidos.
 > seleção por grupo e coloração RGB do grupo selecionado. Ver
 > [contracts/freestyler.md](contracts/freestyler.md).
 
-- **FR-008**: A configuração MUST declarar **um grupo do Freestyler** como
-  seguidor de cor, pelo nome que ele tem lá. Fixture fora desse grupo MUST NOT
-  receber comando algum do integrador, em nenhuma circunstância.
+- **FR-008**: Quando a saída DMX está habilitada, a configuração MUST declarar
+  **um grupo do Freestyler** como seguidor de cor, pelo nome que ele tem lá.
+  Fixture fora desse grupo MUST NOT receber comando algum do integrador, em
+  nenhuma circunstância.
+- **FR-008a**: A saída DMX MUST ser habilitada pela **presença do bloco de
+  configuração do Freestyler**, e apenas por ela. Bloco ausente significa serviço
+  rodando como a 001 sozinha: consome eventos, registra, não comanda luz. Bloco
+  presente sem nome de grupo MUST ser recusado como erro de configuração na
+  subida.
+  > Uma forma só de dizer "desligado". Com duas, o bloco preenchido pela metade
+  > ficaria indistinguível entre desligar de propósito e esquecer o nome — e o
+  > sintoma dos dois é o mesmo silêncio.
 - **FR-009**: O sistema MUST descobrir os grupos existentes consultando o
   próprio Freestyler, e MUST NOT exigir que o operador declare endereço DMX,
   offsets de canal ou qualquer detalhe de patch. Essa informação já existe na
@@ -481,6 +516,16 @@ log diz exatamente isso, listando os nomes válidos.
   pela 001, sem introduzir segundo arquivo nem flags de linha de comando.
 - **FR-023**: O host e a porta do Freestyler MUST ser configuráveis, nunca fixos
   no código, mesmo com a topologia sendo `localhost`.
+- **FR-023a**: O prazo de espera por resposta de uma consulta ao Freestyler MUST
+  ser configurável, com padrão declarado, e MUST ser validado como
+  **confortavelmente menor que a janela de heartbeat** (FR-021b). Esgotado o
+  prazo, a consulta MUST ser tratada como falha de envio (FR-029) e MUST NOT
+  deixar a saída bloqueada.
+  > Ler o status dos grupos é pré-condição de toda aplicação de cor (FR-012a) e os
+  > envios são serializados (FR-016): uma consulta sem resposta e sem prazo
+  > pararia a luz por tempo indeterminado. O teto contra a janela de heartbeat
+  > existe para que a consulta desista **antes** de a mesa ser declarada morta —
+  > invertido, a ordem dos diagnósticos no log fica enganosa.
 - **FR-024**: O sistema MUST registrar, em nível detalhado, cada aplicação de
   cor: a cor de origem, o grupo selecionado e o valor de cada slot enviado.
 - **FR-025**: O sistema MUST registrar, em nível normal, as transições de estado
@@ -490,6 +535,15 @@ log diz exatamente isso, listando os nomes válidos.
   inventário lido do Freestyler: versão, grupos encontrados e qual deles foi
   resolvido como seguidor. É o que permite diagnosticar configuração errada sem
   abrir a mesa.
+- **FR-025b**: Sempre que a seleção do grupo for confirmada (FR-015c), o sistema
+  MUST consultar quais fixtures ficaram selecionadas e registrar em log quantas e
+  quais são. Se **nenhuma** estiver selecionada, o registro MUST ser um aviso
+  explícito de grupo vazio.
+  > O grupo vazio produz o mesmo sintoma que o integrador quebrado: luz parada.
+  > O inventário de FR-025a lista as fixtures da mesa inteira e não distingue os
+  > dois casos; a consulta de fixtures selecionadas, feita logo após a seleção,
+  > distingue. Ela acontece por seleção efetivada — não por aplicação de cor —,
+  > então não entra no caminho quente de FR-014.
 
 > **A ferramenta de calibração foi removida da spec em 2026-07-29.** Ela ocupava
 > os requisitos FR-030 a FR-030c e existia por uma razão só: descobrir qual
@@ -508,8 +562,8 @@ log diz exatamente isso, listando os nomes válidos.
   fixtures seguidoras uma **cor de repouso declarada na configuração**, tratada
   como qualquer outra cor — mesmo mapeamento de canais, mesma supressão de envio
   redundante.
-- **FR-026a**: A cor de repouso MUST ser obrigatória na configuração quando
-  houver ao menos uma fixture seguidora declarada. Não há valor padrão implícito:
+- **FR-026a**: A cor de repouso MUST ser obrigatória na configuração sempre que a
+  saída DMX estiver habilitada (FR-008a). Não há valor padrão implícito:
   o neutro depende da instalação e MUST ser uma escolha explícita do operador.
 - **FR-026b**: Preto (todos os componentes em zero) MUST ser aceito como cor de
   repouso válida. É assim que o operador escolhe apagar as seguidoras entre
@@ -595,6 +649,9 @@ log diz exatamente isso, listando os nomes válidos.
 - **SC-009**: Configurar o integrador exige do operador **apenas o nome de um
   grupo que ele já criou no Freestyler** — nenhum endereço DMX, nenhum offset de
   canal, nenhuma contagem de fixtures.
+- **SC-012**: Um grupo seguidor que existe mas não contém nenhuma fixture é
+  identificável pelo log, sem abrir o Freestyler: a linha da seleção diz quantas
+  fixtures foram atingidas, e zero aparece como aviso.
 - **SC-010**: Após uma falha de envio, o sistema restabelece a cor pretendida em
   todas as fixtures seguidoras sem intervenção manual, e a divergência fica
   registrada no log enquanto durar.
@@ -643,6 +700,14 @@ log diz exatamente isso, listando os nomes válidos.
   caminho por canal cru, onde cada fixture custa três comandos. Pela via de
   grupo, uma aplicação de cor custa quatro comandos no total, independentemente
   de quantas fixtures o grupo tenha.
+  > **Divergência conhecida com a constitution v1.0.0.** Restrições Técnicas
+  > ainda descreve o limite como se fosse do conector inteiro e exige fatiamento
+  > de todo envio em massa. Decidido em 2026-07-31: corrigir a **constitution**,
+  > por emenda PATCH que atribui o limite ao caminho por canal cru e mantém a
+  > regra de não saturar o socket. A emenda sai em mudança dedicada
+  > (`/speckit-constitution`), nunca junto de código de feature — até lá, esta é a
+  > única divergência de princípio em aberto na 002, e ela é de redação, não de
+  > comportamento.
 - **O teto de reconexão e o intervalo inicial** seguem o que já foi decidido na
   001 para o Holyrics, salvo evidência de que o Freestyler precisa de outro
   ritmo. O mesmo vale para o reagendamento de envio após falha (FR-029a).

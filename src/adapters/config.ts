@@ -75,6 +75,13 @@ const esquema = z.object({
        * disso qualquer atraso de escalonamento vira falsa queda (FR-021b).
        */
       heartbeatTimeoutMs: z.int().min(4500).default(6000),
+      /**
+       * Prazo de resposta de uma consulta `FSBC` (FR-023a). Ler o status dos
+       * grupos é pré-condição de toda aplicação de cor, e os envios são
+       * serializados: sem prazo, uma consulta sem resposta pararia a luz por
+       * tempo indeterminado.
+       */
+      consultaTimeoutMs: z.int().positive().default(2000),
     })
     .optional(),
 });
@@ -160,6 +167,19 @@ export function validarConfig(
       erro:
         `reconexao.intervaloMaximoMs deve ser maior ou igual a ` +
         `reconexao.intervaloInicialMs`,
+    };
+  }
+
+  // A consulta precisa desistir ANTES de a mesa ser declarada morta (FR-023a).
+  // Invertida, a ordem dos diagnósticos no log fica enganosa: apareceria
+  // "consulta sem resposta" depois de "Freestyler perdido".
+  const fs = config.freestyler;
+  if (fs !== undefined && fs.consultaTimeoutMs > fs.heartbeatTimeoutMs / 2) {
+    return {
+      ok: false,
+      erro:
+        `freestyler.consultaTimeoutMs deve ser no máximo metade de ` +
+        `freestyler.heartbeatTimeoutMs`,
     };
   }
 

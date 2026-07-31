@@ -124,6 +124,12 @@ Qualquer envio em massa precisa ser fatiado.
 - **O Freestyler é um alvo frágil.** Como o protocolo emula teclas, comandos
   rápidos demais ou em excesso podem se perder. Respeite o limite de ~100 valores
   e não bombardeie o socket.
+  > **Divergência conhecida, decidida em 2026-07-31.** O limite de ~100 valores é
+  > do caminho por **canal cru** (`setDMXFromArray`), não do conector inteiro. A
+  > 002 colore um grupo com três comandos de slot, então FR-014 dispensa
+  > fatiamento. A correção é na **constitution**, por emenda PATCH em mudança
+  > dedicada (`/speckit-constitution`) — nunca junto de código de feature. Até
+  > lá, é divergência de redação, não de comportamento.
 - **Reconexão.** Tanto o Holyrics quanto o Freestyler podem estar fechados quando
   o serviço sobe, ou cair durante o culto. O serviço precisa tolerar os dois
   ausentes e se recuperar sozinho, sem derrubar o processo.
@@ -155,15 +161,23 @@ princípios. Dois deles mudam como se escreve código aqui e não são negociáv
 **001 — leitura de cor**: implementada, verificada contra Holyrics 2.29.1, com
 os tres valores calibrados. Falta so o quickstart completo (T073).
 
-**002 — saida DMX**: especificada, planejada, e implementada ate a Phase 7 de 9.
-188 testes; nucleo e adaptador do Freestyler com **100% de cobertura**. Falta a
-verificacao com apresentacao no ar por um culto (T051-T056) e a documentacao
-final (T057-T059).
+**002 — saida DMX**: implementada por inteiro, com a documentacao (Phase 9) e a
+emenda de 31/07 (Phase 11) fechadas. 206 testes; nucleo e adaptador do Freestyler
+com **100% de cobertura**. **Falta so a Phase 8**: a verificacao com apresentacao
+no ar por um culto (T051-T056), que exige as duas ferramentas rodando com
+hardware e nao tem como ser feita fora do PC do culto.
 
 O desenho da 002 mudou bastante depois que o protocolo do Freestyler foi
 verificado: a configuracao declara **nome de grupo**, nao endereco DMX, porque a
 ferramenta responde o patch quando perguntada. Isso eliminou a ferramenta de
 calibracao que a spec original previa.
+
+A sessao de clarificacao de 2026-07-31 acrescentou tres coisas: o bloco
+`freestyler` ausente virou a **unica** forma de desligar a saida (FR-008a), o
+prazo de consulta virou configuravel com teto na metade da janela de heartbeat
+(FR-023a), e toda selecao efetivada passou a registrar **quantas e quais**
+fixtures atingiu (FR-025b) — porque grupo vazio e integrador quebrado produzem o
+mesmo sintoma.
 
 ## Estrutura do código (quando existir)
 
@@ -184,12 +198,14 @@ intervalo de leitura (1s), limiar (ΔE configurável + confirmação por
 permanência), comportamento sem apresentação (reporta o estado, descarta a
 referência de cor).
 
-**Abertas, para a feature de saída:**
+**Resolvidas na spec 002**, as três que estavam abertas para a saída:
 
-- Formato da config de fixtures: endereço DMX inicial e offsets dos canais R/G/B.
-- O que as luzes fazem quando não há apresentação: manter a última cor, apagar ou
-  ir para uma cor padrão.
-- Se o evento de slide deve gerar reação nas luzes, e qual.
+- Formato da config de fixtures: **não existe**. A configuração declara o nome do
+  grupo, e o Freestyler responde o patch quando perguntado (FR-009).
+- Sem apresentação, as luzes vão para uma `corDeRepouso` obrigatória e explícita
+  — mas só depois da primeira cor de verdade: antes disso o integrador não
+  comanda nada, para não roubar a seleção de quem está configurando a mesa.
+- O evento de slide **não** produz efeito nas luzes, por decisão registrada.
 
 **Resolvidas na verificação de 2026-07-28** (Holyrics 2.29.1): índice de região
 (**0**, a mais próxima do centroide das oito), limiar de ΔE (**2**, agora

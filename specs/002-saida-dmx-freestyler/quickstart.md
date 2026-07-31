@@ -30,13 +30,22 @@ de toggle são verificáveis sem Freestyler, sem Holyrics e sem fixture.
 
 Ponha `heartbeatTimeoutMs: 1000` no config e suba o serviço.
 
-**Esperado**: recusa de subida citando o campo e a regra (mínimo 3000), sem
+**Esperado**: recusa de subida citando o campo e a regra (mínimo 4500), sem
 ecoar valores de outros campos.
 
 Repita com `grupo` presente e `corDeRepouso` ausente. **Esperado**: mesma recusa,
 citando a dependência entre os dois campos.
 
-## Cenário 3 — Inventário no log
+Repita com o bloco `freestyler` presente e **sem** `grupo`. **Esperado**: recusa
+citando o campo — bloco preenchido pela metade é erro, não modo de operação
+(FR-008a). Depois remova o bloco **inteiro**: aí o serviço sobe, consome eventos
+e não comanda luz nenhuma.
+
+Repita com `heartbeatTimeoutMs: 6000` e `consultaTimeoutMs: 4000`. **Esperado**:
+recusa citando os dois campos — a consulta tem que desistir antes de a mesa ser
+declarada morta (FR-023a).
+
+## Cenário 3 — Inventário no log, e quais fixtures a seleção pega
 
 Suba o serviço com o Freestyler aberto.
 
@@ -45,6 +54,15 @@ grupos encontrados, e qual foi resolvido como seguidor.
 
 É o que substitui a antiga ferramenta de calibração: o operador confere o
 mapeamento lendo o log, sem acender nada.
+
+Provoque a primeira cor e leia a linha `seleção efetivada`. **Esperado**: o
+número de fixtures atingidas e o nome de cada uma, batendo com o que o Freestyler
+mostra para aquele grupo.
+
+Agora aponte `grupo` para um grupo que **existe e está vazio** e provoque uma cor.
+**Esperado**: aviso `grupo seguidor existe mas está vazio`, com
+`fixturesAtingidas: 0` (SC-012). Sem essa linha, grupo vazio e integrador
+quebrado teriam exatamente o mesmo sintoma — luz parada.
 
 ## Cenário 4 — Nome de grupo errado é diagnosticável
 
@@ -133,7 +151,7 @@ enviado na saída (FR-028).
 |---|---|
 | 1 | — (Princípio II) |
 | 2 | SC-006 parcial |
-| 3 | SC-009 |
+| 3 | SC-009, SC-012 |
 | 4 | SC-006 |
 | 5 | SC-011 |
 | 6 | SC-001, SC-002, SC-007 |

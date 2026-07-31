@@ -67,6 +67,10 @@ function ligarSaídaDMX(
   const clienteFs = criarClienteFreestyler({
     host: cfg.host,
     port: cfg.port,
+    // Sem prazo, uma consulta sem resposta pararia a luz por tempo
+    // indeterminado: ler o status dos grupos é pré-condição de toda aplicação
+    // de cor e os envios são serializados (FR-023a).
+    timeoutDeConsultaMs: cfg.consultaTimeoutMs,
     aoPulso: () => {
       batimento = registrarPulso(batimento, Date.now());
     },

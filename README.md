@@ -95,9 +95,69 @@ permite desenvolver longe do PC do culto.
 
 Tudo em `config/config.json` — host, porta, intervalo de leitura, região de cor,
 limiar, confirmação, reconexão e log. Os campos e suas regras estão em
-[contracts/config.md](specs/001-leitura-cor-holyrics/contracts/config.md).
+[contracts/config.md](specs/001-leitura-cor-holyrics/contracts/config.md) e, para
+a saída DMX, em
+[contracts/config.md da 002](specs/002-saida-dmx-freestyler/contracts/config.md).
 
 O arquivo real fica fora do git; só o `config.example.json` é versionado.
+
+### O bloco `freestyler`
+
+```json
+"freestyler": {
+  "grupo": "03: Par Led",
+  "corDeRepouso": { "r": 0, "g": 0, "b": 0 },
+  "heartbeatTimeoutMs": 6000,
+  "consultaTimeoutMs": 2000
+}
+```
+
+**Você declara o nome do grupo, nunca endereço DMX nem offset de canal.** O
+Freestyler já sabe o patch e responde quando perguntado; repetir isso no arquivo
+criaria uma segunda fonte de verdade para divergir da primeira. O nome tem que
+ser o que aparece na mesa, com o prefixo numérico: a comparação ignora
+maiúsculas e espaços nas pontas, mas **não** ignora acento.
+
+**Para desligar a saída, remova o bloco inteiro** — é a única forma. Bloco
+presente sem `grupo` é recusado na subida, de propósito: com duas maneiras de
+dizer "desligado", quem desligou por opção ficaria indistinguível de quem
+esqueceu de preencher o nome, e o sintoma dos dois é o mesmo silêncio.
+
+`consultaTimeoutMs` vale no máximo **metade** de `heartbeatTimeoutMs`. A consulta
+precisa desistir antes de a mesa ser declarada morta; invertido, o log diria
+"Freestyler perdido" antes de "consulta sem resposta", que é a ordem errada para
+quem está diagnosticando.
+
+## O que aparece no log
+
+O log é JSON (`pino`), em `./logs/integrador.log`. Em nível normal, o que a saída
+DMX escreve:
+
+| Linha | Quando | O que confirma |
+|---|---|---|
+| `inventário do Freestyler` | Subida e cada reconexão | Versão, grupos e fixtures com endereço. É como conferir a configuração sem abrir a mesa |
+| `grupo seguidor resolvido` | Primeira aplicação após conectar | O nome configurado casou, e em qual posição |
+| `seleção efetivada` | A cada seleção de grupo | **Quantas e quais fixtures** a seleção atingiu |
+| `cor escrita` / `cor de repouso escrita` | A cada mudança de cor | A luz foi comandada. Sem esta linha, um culto inteiro rodaria sem sinal nenhum |
+| `aguardando a primeira cor anunciada` | Uma vez, sem apresentação | O silêncio é deliberado, não defeito |
+
+Os avisos que valem procurar quando a luz não acompanha:
+
+| Aviso | Significa |
+|---|---|
+| `grupo configurado não existe no Freestyler` | Nome errado. A linha traz os nomes válidos |
+| `mais de um grupo casa com o nome configurado` | Nome ambíguo. A linha traz os conflitantes |
+| `grupo seguidor existe mas está vazio` | O grupo não tem fixture nenhuma. Mesmo sintoma de defeito, causa diferente |
+| `seleção de grupo não confirmada` | A mesa não assumiu a seleção; nenhuma cor é escrita nesse ciclo |
+| `falha ao escrever a cor` | Traz a divergência entre pretendida e escrita, e o reenvio vem sozinho |
+| `Freestyler não responde (sem batimento)` | Mesa travada com o socket aberto — a escrita "funcionaria" para o vazio |
+
+Em `debug` entra ainda o detalhe por slot de cada envio (`detalhe do envio de
+cor`) e o ciclo de leitura do Holyrics.
+
+**Sobre o vocabulário**: o log diz cor **escrita**, nunca "aplicada" ou
+"entregue". O protocolo do Freestyler não confirma valor de cor — só a seleção
+de grupo é confirmável — e o texto não afirma o que não é observável.
 
 ## Antes de usar num culto
 
@@ -144,3 +204,6 @@ permite testar a lógica de cor sem nada ligado.
   que governam o desenvolvimento
 - [specs/001-leitura-cor-holyrics/](specs/001-leitura-cor-holyrics/) — spec,
   plano, contratos, tarefas
+- [specs/002-saida-dmx-freestyler/](specs/002-saida-dmx-freestyler/) — idem, e o
+  [contrato do Freestyler](specs/002-saida-dmx-freestyler/contracts/freestyler.md)
+  com o protocolo verificado contra a ferramenta real

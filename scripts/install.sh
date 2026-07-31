@@ -101,10 +101,12 @@ ok "Suíte passou — a lógica de cor funciona sem o Holyrics estar aberto"
 printf '\n%s=== Pronto ===%s\n' "$azul" "$fim"
 cat <<'FIM'
 
-  Antes do primeiro teste real, faltam duas coisas suas:
+  Antes do primeiro teste real, faltam três coisas suas:
 
     1. Colocar o token do Holyrics no arquivo .env
     2. Conferir a porta do API Server em config/config.json
+    3. Acertar freestyler.grupo com o NOME do grupo como ele aparece na mesa,
+       e freestyler.corDeRepouso com o neutro desta instalação
 
   Depois:
 
@@ -113,7 +115,11 @@ cat <<'FIM'
     ./scripts/status.sh          mostra se está rodando e os últimos eventos
     ./scripts/stop.sh            encerra
 
-  ATENÇÃO: a região de cor e o limiar em config/config.json ainda são chute.
-  Só o teste real, com o telão à vista, define os valores certos.
+  Se o nome do grupo estiver errado, o log lista os nomes válidos na linha
+  "inventário do Freestyler" e nenhuma luz é comandada — não há dano, só
+  silêncio. Para rodar SEM comandar luz, remova o bloco freestyler inteiro.
+
+  A região de cor, o limiar e o tempo limite já foram calibrados contra o
+  Holyrics real em 2026-07-28. Não são mais chute.
 
 FIM

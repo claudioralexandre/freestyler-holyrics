@@ -51,10 +51,20 @@
     "       Freestyler ja sabe o patch e responde quando perguntado.",
     "",
     "corDeRepouso  vale quando nao ha apresentacao. Preto apaga as fixtures.",
-    "              Obrigatoria quando ha grupo.",
+    "              Obrigatoria: nao ha neutro implicito.",
     "",
     "heartbeatTimeoutMs  o Freestyler emite um pulso a cada ~1499ms. Minimo",
-    "                    4500 (tres pulsos); padrao 6000."
+    "                    4500 (tres pulsos); padrao 6000.",
+    "",
+    "consultaTimeoutMs  prazo de resposta de uma consulta. Padrao 2000, e no",
+    "                   maximo METADE de heartbeatTimeoutMs: a consulta precisa",
+    "                   desistir antes de a mesa ser declarada morta, senao a",
+    "                   ordem dos diagnosticos no log fica enganosa.",
+    "",
+    "Para DESLIGAR a saida, remova o bloco inteiro. Bloco presente sem 'grupo'",
+    "e erro de configuracao, nao modo de operacao — com duas formas de dizer",
+    "'desligado', quem desligou de proposito ficaria indistinguivel de quem",
+    "esqueceu de preencher o nome."
   ],
 
   "freestyler": {
@@ -62,7 +72,8 @@
     "port": 3332,
     "grupo": "03: Par Led",
     "corDeRepouso": { "r": 0, "g": 0, "b": 0 },
-    "heartbeatTimeoutMs": 6000
+    "heartbeatTimeoutMs": 6000,
+    "consultaTimeoutMs": 2000
   },
 
   "log": {

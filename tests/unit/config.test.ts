@@ -277,4 +277,69 @@ describe('bloco freestyler (T018)', () => {
     if (r.ok) return;
     expect(r.erro).not.toMatch(/1234/);
   });
+
+  describe('o bloco é o interruptor da feature (T063, FR-008a)', () => {
+    it('recusa o bloco presente SEM nome de grupo — é erro, não modo de operação', () => {
+      const c = comFreestyler();
+      delete (c.freestyler as Record<string, unknown>).grupo;
+
+      const r = validarConfig(c);
+
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.erro).toMatch(/grupo/);
+    });
+
+    it('recusa nome de grupo vazio, que seria a mesma ambiguidade escrita de outro jeito', () => {
+      expect(validarConfig(comFreestyler({ grupo: '' })).ok).toBe(false);
+    });
+
+    it('a ausência do bloco é a ÚNICA forma de desligar a saída', () => {
+      // Duas formas de dizer "desligado" tornariam indistinguíveis o operador que
+      // desligou de propósito e o que esqueceu de preencher o nome.
+      const r = validarConfig(base());
+
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.valor.freestyler).toBeUndefined();
+    });
+  });
+
+  describe('prazo de consulta (T064, FR-023a)', () => {
+    it('usa 2000 como padrão declarado', () => {
+      const c = comFreestyler();
+      delete (c.freestyler as Record<string, unknown>).consultaTimeoutMs;
+
+      const r = validarConfig(c);
+
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.valor.freestyler?.consultaTimeoutMs).toBe(2000);
+    });
+
+    it('recusa prazo acima da metade da janela de heartbeat', () => {
+      // A consulta precisa desistir ANTES de a mesa ser declarada morta; ao
+      // contrário, a ordem dos diagnósticos no log fica enganosa.
+      const r = validarConfig(
+        comFreestyler({ heartbeatTimeoutMs: 6000, consultaTimeoutMs: 3001 }),
+      );
+
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.erro).toMatch(/consultaTimeoutMs/);
+      expect(r.erro).toMatch(/heartbeatTimeoutMs/);
+    });
+
+    it('aceita exatamente a metade da janela', () => {
+      const r = validarConfig(
+        comFreestyler({ heartbeatTimeoutMs: 6000, consultaTimeoutMs: 3000 }),
+      );
+
+      expect(r.ok).toBe(true);
+    });
+
+    it('recusa prazo não positivo', () => {
+      expect(validarConfig(comFreestyler({ consultaTimeoutMs: 0 })).ok).toBe(false);
+    });
+  });
 });
