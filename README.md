@@ -8,8 +8,8 @@ azuis.
 
 ## Estado atual
 
-Duas features, ambas com as integrações **verificadas contra as ferramentas
-reais** — Holyrics 2.29.1 e FreeStyler 4.1.7, com hardware.
+Três features. As integrações estão **verificadas contra as ferramentas reais** —
+Holyrics 2.29.1 e FreeStyler 4.1.7, com hardware.
 
 **001 — leitura de cor do Holyrics.** Le a cor da apresentacao uma vez por
 segundo, filtra por limiar perceptual e confirmacao por permanencia, acompanha
@@ -20,7 +20,14 @@ nas fixtures de um grupo do Freestyler. A configuracao declara o **nome do
 grupo**, nunca endereco DMX nem offset de canal: o Freestyler ja sabe o patch e
 responde quando perguntado.
 
-Falta a verificacao final com apresentacao no ar por um culto inteiro.
+**003 — override de cor por tag do tema.** Quando a cor calculada sai errada, o
+operador marca o tema com uma tag no Holyrics e declara a cor no arquivo. A partir
+dai aquele tema, e qualquer outro marcado igual, acende a cor escolhida.
+
+Falta a verificacao final com apresentacao no ar por um culto inteiro. Na 003
+falta tambem confirmar **como uma tag do Holyrics chega de verdade**: nenhum tema
+com tag foi observado nesta instalacao, entao o formato exato do conteudo segue
+sendo suposicao marcada no codigo.
 
 ## Requisitos
 
@@ -128,6 +135,50 @@ precisa desistir antes de a mesa ser declarada morta; invertido, o log diria
 "Freestyler perdido" antes de "consulta sem resposta", que é a ordem errada para
 quem está diagnosticando.
 
+### A seção `coresPorTag`
+
+Serve para quando a cor extraída sai esquisita. O color map do Holyrics é uma
+**média** amostrada do tema — tema com cores opostas vira cinza, tema claro vira
+lavado — e até agora não havia como discordar do resultado sem editar o tema
+dentro do Holyrics, mexendo no que a congregação vê para consertar o que ela não
+vê.
+
+Marque o tema com uma tag no Holyrics, declare a cor aqui, e aquele tema passa a
+acender a cor que você escolheu:
+
+```json
+"coresPorTag": [
+  { "tag": "azul-escuro", "cor": { "r": 0, "g": 20, "b": 120 } },
+  { "tag": "azul", "cor": { "r": 0, "g": 40, "b": 200 } }
+]
+```
+
+Configurar um override exige de você **uma tag que já usa no Holyrics e três
+números de 0 a 255**. Nada mais. Remover a seção inteira desliga a feature, e é a
+única forma de desligar.
+
+**É array, e isso não é estilo.** A ordem declarada é a regra de desempate, e
+objeto JSON não preserva ordem: uma chave como `2024` salta para a frente das
+demais e ainda se reordena entre as outras numéricas. Com array, a ordem é a
+ordem, para qualquer tag que você escreva.
+
+| Aspecto | Comportamento |
+|---|---|
+| Empate | Vence a **primeira declarada**, de cima para baixo. A ordem das tags no Holyrics não influencia — declare o específico antes do genérico |
+| Caixa e espaço nas pontas | Ignorados |
+| Acento | **Conta**: `ceu` não casa com `céu`. Mas as duas grafias Unicode do mesmo acento casam entre si |
+| Tags que casam entre si | Recusadas na subida, com as duas nomeadas. Uma venceria sempre e a outra nunca |
+| Preto | Cor válida — apaga as seguidoras naquele tema |
+
+O override é **do tema**: enquanto o tema permanecer, a cor declarada permanece,
+qualquer que seja a música ou o slide. Ele também vale quando a leitura de cor
+falha — a cor declarada não depende da extração. O que ele **não** faz é acender
+luz sem apresentação no ar: aí o repouso continua mandando.
+
+A cor mapeada atravessa as mesmas barreiras que qualquer outra — limiar e
+confirmação por permanência. Ela não pula a fila, e é por isso que o palco leva os
+mesmos ~2 segundos de sempre para mudar.
+
 ## O que aparece no log
 
 O log é JSON (`pino`), em `./logs/integrador.log`. Em nível normal, o que a saída
@@ -151,6 +202,18 @@ Os avisos que valem procurar quando a luz não acompanha:
 | `seleção de grupo não confirmada` | A mesa não assumiu a seleção; nenhuma cor é escrita nesse ciclo |
 | `falha ao escrever a cor` | Traz a divergência entre pretendida e escrita, e o reenvio vem sozinho |
 | `Freestyler não responde (sem batimento)` | Mesa travada com o socket aberto — a escrita "funcionaria" para o vazio |
+
+Com `coresPorTag` declarada, mais quatro linhas:
+
+| Linha | Quando | O que confirma |
+|---|---|---|
+| `override de cor por tag ativo` | Subida | Quantos mapeamentos foram lidos e quais tags cobrem. Um override esquecido no arquivo aparece aqui |
+| `cor anunciada: #… — da tag "x"` | A cada cor vinda de mapeamento | Qual tag respondeu, e qual cor a extração havia calculado |
+| `tema traz tags, nenhuma mapeada` | Troca de tema | **É o diagnóstico de tag digitada diferente** nos dois lados. Sem esta linha, o sintoma é igual ao de override nenhum |
+| `mais de uma tag mapeada; venceu "x"` | Empate | Qual venceu e quais foram preteridas, para você mover a linha certa no arquivo |
+
+Tema sem tag alguma **não** gera linha: é o estado normal de quem não usa a
+feature, e registrá-lo encheria o log de ruído em todo culto.
 
 Em `debug` entra ainda o detalhe por slot de cada envio (`detalhe do envio de
 cor`) e o ciclo de leitura do Holyrics.

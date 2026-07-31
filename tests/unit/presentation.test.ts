@@ -256,3 +256,66 @@ describe('consultas que falharam preservam o valor anterior (FR-004a)', () => {
     expect(r.tema).toEqual(tema);
   });
 });
+
+describe('casamento junto do tema (T015, feature 003)', () => {
+  const AZUL = { r: 0, g: 40, b: 200 };
+  const mapa = [{ tag: 'azul', cor: AZUL }];
+  const temaCom = (...tags: string[]): Tema => ({ id: 'tm1', nome: 'Tema 9', tags });
+
+  it('devolve o veredito do tema que ENTROU, calculado uma vez só', () => {
+    const r = diferençaDeContexto(
+      estadoCom({ item: item('s1'), tema: null }),
+      leitura(item('s1'), temaCom('azul')),
+      mapa,
+    );
+
+    expect(r.casamento.tipo).toBe('mapeada');
+    if (r.casamento.tipo !== 'mapeada') return;
+    expect(r.casamento.cor).toEqual(AZUL);
+  });
+
+  it('devolve nenhuma_mapeada com as tags observadas, para o diagnóstico', () => {
+    const r = diferençaDeContexto(
+      estadoCom({ item: item('s1') }),
+      leitura(item('s1'), temaCom('azuI')),
+      mapa,
+    );
+
+    expect(r.casamento.tipo).toBe('nenhuma_mapeada');
+  });
+
+  it('sem mapeamentos declarados, o veredito é sem_mapeamento', () => {
+    const r = diferençaDeContexto(
+      estadoCom({ item: item('s1') }),
+      leitura(item('s1'), temaCom('azul')),
+    );
+
+    expect(r.casamento.tipo).toBe('sem_mapeamento');
+  });
+
+  it('avalia o tema PRESERVADO quando a consulta de tema falhou', () => {
+    // Perder a leitura não é perder o tema: o override sobrevive à falha.
+    const r = diferençaDeContexto(
+      estadoCom({ item: item('s1'), tema: temaCom('azul') }),
+      {
+        momento: 1000,
+        cor: { ok: true, valor: { regioes: [{ r: 0, g: 0, b: 255 }] } },
+        item: { ok: true, valor: item('s1') },
+        tema: { ok: false, motivo: 'indisponivel' },
+      },
+      mapa,
+    );
+
+    expect(r.casamento.tipo).toBe('mapeada');
+  });
+
+  it('sem tema, o veredito é sem_tema', () => {
+    const r = diferençaDeContexto(
+      estadoCom({ item: item('s1') }),
+      leitura(item('s1'), null),
+      mapa,
+    );
+
+    expect(r.casamento.tipo).toBe('sem_tema');
+  });
+});

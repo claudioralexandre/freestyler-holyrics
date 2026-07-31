@@ -35,6 +35,39 @@
     "ciclosDeConfirmacao": 2
   },
 
+  "_coresPorTag-leia-me": [
+    "Secao OPCIONAL (feature 003). Ausente ou vazia, a cor vem so da extracao,",
+    "exatamente como antes desta feature. Remover a secao inteira e a UNICA",
+    "forma de desligar.",
+    "",
+    "Serve para quando a cor extraida sai esquisita: o color map do Holyrics e",
+    "uma MEDIA amostrada do tema, entao tema com cores opostas vira cinza e tema",
+    "claro vira lavado. Marque o tema com uma tag no Holyrics, declare a cor",
+    "aqui, e aquele tema passa a acender a cor que voce escolheu.",
+    "",
+    "E ARRAY, NAO OBJETO, e isso nao e estilo. A ordem declarada e a regra de",
+    "desempate, e objeto JSON nao preserva ordem: uma chave como '2024' salta",
+    "para a frente das demais e ainda se reordena entre as outras numericas.",
+    "Com array, a ordem e a ordem, para qualquer tag.",
+    "",
+    "DESEMPATE: quando o tema tem mais de uma tag mapeada, vence a PRIMEIRA",
+    "declarada aqui, de cima para baixo. A ordem das tags dentro do Holyrics nao",
+    "influencia. Declare o especifico antes do generico: 'azul-escuro' antes de",
+    "'azul'.",
+    "",
+    "COMPARACAO: ignora maiusculas/minusculas e espacos nas pontas. Acento CONTA",
+    "('ceu' nao casa com 'ceu' acentuado), mas as duas grafias Unicode do mesmo",
+    "acento casam entre si. Duas tags que casem uma com a outra sao recusadas na",
+    "subida — escolher uma em silencio daria cor estavel e inexplicavel.",
+    "",
+    "Preto e cor valida: apaga as fixtures seguidoras naquele tema."
+  ],
+
+  "coresPorTag": [
+    { "tag": "azul-escuro", "cor": { "r": 0, "g": 20, "b": 120 } },
+    { "tag": "azul", "cor": { "r": 0, "g": 40, "b": 200 } }
+  ],
+
   "reconexao": {
     "intervaloInicialMs": 1000,
     "intervaloMaximoMs": 15000

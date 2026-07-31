@@ -18,6 +18,10 @@ const corAnunciada = (cor: Cor): Evento => ({
   anterior: null,
   motivo: 'mudanca_confirmada',
   deltaE: 40,
+  // Idem: a saída DMX não pergunta de onde a cor veio (003, plan.md).
+  origem: 'extraida',
+  tag: null,
+  extraída: cor,
 });
 
 /** Logger mudo com a superfície que o serviço usa. */

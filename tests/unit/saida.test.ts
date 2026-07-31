@@ -20,6 +20,11 @@ const corAnunciada = (cor: Cor): Evento => ({
   anterior: null,
   motivo: 'mudanca_confirmada',
   deltaE: 30,
+  // A 002 lê `cor` e ignora a origem — os campos existem porque a 003 os
+  // acrescentou ao evento, não porque esta feature os consulta.
+  origem: 'extraida',
+  tag: null,
+  extraída: cor,
 });
 
 const GRUPO = { nomeConfigurado: '03: Par Led', nomeReal: '03: Par Led', posição: 3 };

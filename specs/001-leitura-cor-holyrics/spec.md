@@ -246,6 +246,18 @@ que a leitura de cor começa sem reiniciar o integrador.
   reportando-os no estado e no log.
 - **FR-005b**: O tema e suas etiquetas MUST NOT influenciar a cor anunciada,
   o limiar ou a confirmação por permanência — são observação, não decisão.
+  > **Emendado em 2026-07-31 pela feature 003.** As etiquetas passam a influenciar
+  > a cor **quando, e somente quando, uma delas estiver declarada** na seção
+  > `coresPorTag` da configuração. Sem mapeamento declarado, o texto acima
+  > continua valendo palavra por palavra: o tema é observação e nada mais.
+  >
+  > O motivo original segue válido no que importava — cor derivada de tema **por
+  > conta própria** seria adivinhação. O que mudou é que agora existe uma
+  > declaração explícita do operador dizendo qual cor aquele tema deve ter. A
+  > decisão saiu do sistema e foi para o arquivo.
+  >
+  > Ver `specs/003-override-cor-por-tag/spec.md`, seção "Emendas a features
+  > anteriores".
 - **FR-005c**: A ausência de tema, ou a indisponibilidade dessa informação, MUST
   NOT impedir a leitura de cor nem interromper o ciclo.
 

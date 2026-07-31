@@ -315,3 +315,312 @@ describe('pureza do núcleo (Princípio II, SC-006)', () => {
     expect(a).toEqual(b);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Feature 003 — override de cor por tag do tema
+// ---------------------------------------------------------------------------
+
+const AZUL_MAPEADO: Cor = { r: 0, g: 40, b: 200 };
+const CINZA: Cor = { r: 120, g: 120, b: 118 };
+const MAPA = [{ tag: 'azul', cor: AZUL_MAPEADO }];
+const COM_MAPA: ParâmetrosDoNúcleo = { ...PARÂMETROS, coresPorTag: MAPA };
+
+const temaCom = (id: string, ...tags: string[]) => ({ id, nome: `Tema ${id}`, tags });
+
+/** Ciclo com controle de tema, para os testes de override. */
+function cicloComTema(
+  cor: Cor,
+  tema: { id: string; nome: string; tags: string[] } | null,
+  momento = 1000,
+): LeituraDoCiclo {
+  return {
+    momento,
+    cor: { ok: true, valor: { regioes: [cor] } },
+    item: { ok: true, valor: ITEM_PÚBLICO },
+    tema: { ok: true, valor: tema },
+  };
+}
+
+const ITEM_PÚBLICO: ItemEmExibição = {
+  id: 'item-padrao',
+  tipo: 'song',
+  nome: 'Item de teste',
+  slide: 1,
+  totalDeSlides: 4,
+};
+
+const anúncioDe = (eventos: readonly { tipo: string }[]) =>
+  eventos.find((e) => e.tipo === 'cor_anunciada') as
+    | Extract<import('../../src/core/events.ts').Evento, { tipo: 'cor_anunciada' }>
+    | undefined;
+
+describe('a cor efetiva alimenta a decisão (T017, FR-008)', () => {
+  it('com tema mapeado, anuncia a cor DECLARADA e não a extraída', () => {
+    const { eventos, estado } = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'azul')),
+      COM_MAPA,
+    );
+
+    const a = anúncioDe(eventos);
+    expect(a?.cor).toEqual(AZUL_MAPEADO);
+    expect(estado.corDeReferência).toEqual(AZUL_MAPEADO);
+  });
+
+  it('o evento carrega origem, tag e a extraída descartada (FR-009, FR-015)', () => {
+    const { eventos } = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'azul')),
+      COM_MAPA,
+    );
+
+    const a = anúncioDe(eventos);
+    expect(a?.origem).toBe('mapeada');
+    expect(a?.tag).toBe('azul');
+    expect(a?.extraída).toEqual(CINZA);
+  });
+
+  it('sem tag mapeada, a origem é extraida e não há tag', () => {
+    const { eventos } = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'natal')),
+      COM_MAPA,
+    );
+
+    const a = anúncioDe(eventos);
+    expect(a?.cor).toEqual(CINZA);
+    expect(a?.origem).toBe('extraida');
+    expect(a?.tag).toBeNull();
+  });
+});
+
+describe('sem a seção, nada muda (T020, FR-002, SC-003)', () => {
+  it('produz exatamente os mesmos eventos e estado que sem a feature', () => {
+    const leitura = cicloComTema(CINZA, temaCom('t1', 'azul'));
+
+    const sem = aplicarCiclo(ESTADO_INICIAL, leitura, PARÂMETROS);
+    const vazio = aplicarCiclo(ESTADO_INICIAL, leitura, { ...PARÂMETROS, coresPorTag: [] });
+
+    expect(sem.estado).toEqual(vazio.estado);
+    expect(sem.estado.corDeReferência).toEqual(CINZA);
+    expect(anúncioDe(sem.eventos)?.origem).toBe('extraida');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// US2 — o override vale quando a extração NÃO muda.
+//
+// RED não é esperado aqui: se o desenho estiver certo, estes testes passam de
+// primeira, porque o comportamento EMERGE de a efetiva alimentar o limiar.
+// Passarem confirma o desenho; falharem prova que a resolução entrou no lugar
+// errado. Existem para que uma refatoração não desfaça a emergência em silêncio.
+// ---------------------------------------------------------------------------
+
+describe('US2: o override vale com a extração parada (T023, FR-010)', () => {
+  it('a troca para tema mapeado anuncia a declarada mesmo sem a extração mudar', () => {
+    // Ciclo 1: tema sem tag. A extraída vira referência.
+    const c1 = aplicarCiclo(ESTADO_INICIAL, cicloComTema(CINZA, temaCom('t1'), 1000), COM_MAPA);
+    expect(c1.estado.corDeReferência).toEqual(CINZA);
+
+    // Ciclos 2 e 3: MESMA cor extraída, tema mapeado. Confirmação em 2 ciclos.
+    const c2 = aplicarCiclo(c1.estado, cicloComTema(CINZA, temaCom('t2', 'azul'), 2000), COM_MAPA);
+    const c3 = aplicarCiclo(c2.estado, cicloComTema(CINZA, temaCom('t2', 'azul'), 3000), COM_MAPA);
+
+    expect(anúncioDe(c3.eventos)?.cor).toEqual(AZUL_MAPEADO);
+    expect(anúncioDe(c3.eventos)?.origem).toBe('mapeada');
+    expect(c3.estado.corDeReferência).toEqual(AZUL_MAPEADO);
+  });
+});
+
+describe('US2: sair do override é tão observável quanto entrar (T024, FR-011)', () => {
+  it('a extraída volta ao palco mesmo sem ter mudado desde antes do override', () => {
+    let e = aplicarCiclo(ESTADO_INICIAL, cicloComTema(CINZA, temaCom('t1', 'azul'), 1000), COM_MAPA).estado;
+    expect(e.corDeReferência).toEqual(AZUL_MAPEADO);
+
+    // Tema sem tag, extração inalterada o tempo todo.
+    const s2 = aplicarCiclo(e, cicloComTema(CINZA, temaCom('t9'), 2000), COM_MAPA);
+    const s3 = aplicarCiclo(s2.estado, cicloComTema(CINZA, temaCom('t9'), 3000), COM_MAPA);
+
+    expect(anúncioDe(s3.eventos)?.cor).toEqual(CINZA);
+    expect(anúncioDe(s3.eventos)?.origem).toBe('extraida');
+  });
+});
+
+describe('US2: dois temas mapeados para a MESMA cor (T025)', () => {
+  it('não produzem anúncio nenhum — a cor resultante não mudou', () => {
+    const doisMapas = {
+      ...PARÂMETROS,
+      coresPorTag: [
+        { tag: 'azul', cor: AZUL_MAPEADO },
+        { tag: 'ceu', cor: AZUL_MAPEADO },
+      ],
+    };
+
+    const c1 = aplicarCiclo(ESTADO_INICIAL, cicloComTema(CINZA, temaCom('t1', 'azul'), 1000), doisMapas);
+    const c2 = aplicarCiclo(c1.estado, cicloComTema(CINZA, temaCom('t2', 'ceu'), 2000), doisMapas);
+    const c3 = aplicarCiclo(c2.estado, cicloComTema(CINZA, temaCom('t2', 'ceu'), 3000), doisMapas);
+
+    expect(anúncioDe(c2.eventos)).toBeUndefined();
+    expect(anúncioDe(c3.eventos)).toBeUndefined();
+  });
+});
+
+describe('US2: o override é do TEMA, não do item nem do slide (T026, FR-013)', () => {
+  it('trocar de item e de slide dentro do mesmo tema não muda a cor', () => {
+    const tema = temaCom('t1', 'azul');
+    const comItem = (id: string, slide: number, momento: number): LeituraDoCiclo => ({
+      momento,
+      cor: { ok: true, valor: { regioes: [CINZA] } },
+      item: { ok: true, valor: { id, tipo: 'song', nome: id, slide, totalDeSlides: 4 } },
+      tema: { ok: true, valor: tema },
+    });
+
+    let r = aplicarCiclo(ESTADO_INICIAL, comItem('m1', 1, 1000), COM_MAPA);
+    expect(r.estado.corDeReferência).toEqual(AZUL_MAPEADO);
+
+    for (const [id, slide, t] of [['m1', 2, 2000], ['m2', 1, 3000], ['m2', 3, 4000]] as const) {
+      r = aplicarCiclo(r.estado, comItem(id, slide, t), COM_MAPA);
+      expect(anúncioDe(r.eventos)).toBeUndefined();
+      expect(r.estado.corDeReferência).toEqual(AZUL_MAPEADO);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// As duas fronteiras (FR-008a / FR-014a).
+//
+// Eram UMA condição antes desta feature e continuam vizinhas. Divergem de
+// propósito, e é por isso que cada uma tem teste próprio.
+// ---------------------------------------------------------------------------
+
+const semItem = (tema: { id: string; nome: string; tags: string[] } | null): LeituraDoCiclo => ({
+  momento: 1000,
+  cor: { ok: true, valor: { regioes: [CINZA] } },
+  item: { ok: true, valor: null },
+  tema: { ok: true, valor: tema },
+});
+
+describe('FR-008a: o override vale sem leitura de cor (T028)', () => {
+  it('anuncia a declarada quando a CONSULTA de cor falhou', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      {
+        momento: 1000,
+        cor: { ok: false, motivo: 'indisponivel' },
+        item: { ok: true, valor: ITEM_PÚBLICO },
+        tema: { ok: true, valor: temaCom('t1', 'azul') },
+      },
+      COM_MAPA,
+    );
+
+    expect(anúncioDe(r.eventos)?.cor).toEqual(AZUL_MAPEADO);
+    // Vazio é informação: a extração falhou, não coincidiu com a declarada.
+    expect(anúncioDe(r.eventos)?.extraída).toBeNull();
+  });
+
+  it('anuncia a declarada quando a REGIÃO configurada não existe', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      {
+        momento: 1000,
+        cor: { ok: true, valor: { regioes: [] } },
+        item: { ok: true, valor: ITEM_PÚBLICO },
+        tema: { ok: true, valor: temaCom('t1', 'azul') },
+      },
+      COM_MAPA,
+    );
+
+    expect(anúncioDe(r.eventos)?.cor).toEqual(AZUL_MAPEADO);
+    expect(anúncioDe(r.eventos)?.extraída).toBeNull();
+  });
+
+  it('sem override E sem extração, nada é anunciado', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      {
+        momento: 1000,
+        cor: { ok: false, motivo: 'indisponivel' },
+        item: { ok: true, valor: ITEM_PÚBLICO },
+        tema: { ok: true, valor: temaCom('t1', 'natal') },
+      },
+      COM_MAPA,
+    );
+
+    expect(anúncioDe(r.eventos)).toBeUndefined();
+    expect(r.estado.corDeReferência).toBeNull();
+  });
+});
+
+describe('FR-014a: sem apresentação, nada é anunciado (T030)', () => {
+  it('NÃO anuncia a cor mapeada quando sabidamente não há apresentação', () => {
+    const r = aplicarCiclo(ESTADO_INICIAL, semItem(temaCom('t1', 'azul')), COM_MAPA);
+
+    // Anunciar aqui acenderia a luz exatamente quando a 002 decidiu não
+    // comandar nada (002/FR-027).
+    expect(anúncioDe(r.eventos)).toBeUndefined();
+    expect(r.estado.corDeReferência).toBeNull();
+  });
+
+  it('encerrar a apresentação com tema mapeado não reacende nada', () => {
+    const antes = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'azul'), 1000),
+      COM_MAPA,
+    );
+    expect(antes.estado.corDeReferência).toEqual(AZUL_MAPEADO);
+
+    const depois = aplicarCiclo(antes.estado, semItem(temaCom('t1', 'azul')), COM_MAPA);
+
+    expect(anúncioDe(depois.eventos)).toBeUndefined();
+    // Sem apresentação a referência é descartada (FR-012 da 001).
+    expect(depois.estado.corDeReferência).toBeNull();
+  });
+});
+
+describe('o caso terceiro: consulta de ITEM falhou (T032)', () => {
+  it('não é ausência SABIDA de apresentação, então o override vale', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      {
+        momento: 1000,
+        cor: { ok: true, valor: { regioes: [CINZA] } },
+        item: { ok: false, motivo: 'indisponivel' },
+        tema: { ok: true, valor: temaCom('t1', 'azul') },
+      },
+      COM_MAPA,
+    );
+
+    expect(anúncioDe(r.eventos)?.cor).toEqual(AZUL_MAPEADO);
+  });
+});
+
+describe('últimoSucesso.cor é registro de LEITURA, não de anúncio (T033)', () => {
+  it('NÃO avança quando o override anunciou sem extração válida', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      {
+        momento: 5000,
+        cor: { ok: false, motivo: 'indisponivel' },
+        item: { ok: true, valor: ITEM_PÚBLICO },
+        tema: { ok: true, valor: temaCom('t1', 'azul') },
+      },
+      COM_MAPA,
+    );
+
+    // Houve anúncio...
+    expect(anúncioDe(r.eventos)).toBeDefined();
+    // ...mas não houve leitura. Avançar aqui faria o diagnóstico de "há quanto
+    // tempo o Holyrics não responde cor" mentir durante todo override.
+    expect(r.estado.últimoSucesso.cor).toBeNull();
+  });
+
+  it('avança normalmente quando houve extração, mesmo sob override', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'azul'), 7000),
+      COM_MAPA,
+    );
+
+    expect(r.estado.últimoSucesso.cor).toBe(7000);
+  });
+});

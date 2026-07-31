@@ -58,11 +58,19 @@ Emitido quando o núcleo adota uma nova cor de referência.
 
 | Campo | Notas |
 |---|---|
-| `cor` | Componentes r/g/b, 0–255 |
+| `cor` | Componentes r/g/b, 0–255. É a cor **efetiva**: a declarada quando há override |
 | `anterior` | Cor de referência anterior, ou ausente na primeira |
 | `motivo` | `primeira_leitura` (FR-009a) ou `mudanca_confirmada` (FR-007a) |
+| `origem` | `extraida` ou `mapeada` — **acrescentado pela 003** |
+| `tag` | A tag responsável, ou nulo quando a origem é a extração — **003** |
+| `extraída` | O que a extração calculou, preservado sob override. Nulo quando ela falhou — **003** |
 
 **Não é emitido** por troca de item cuja cor não ultrapasse o limiar (FR-012a).
+
+> **Estendido em 2026-07-31 pela feature 003.** Os três campos finais existem
+> para que uma cor anunciada diga de qual das duas fontes veio. Com
+> `origem: extraida`, `cor` e `extraída` são a mesma cor e `extraída` nunca é
+> nula. Detalhe em `specs/003-override-cor-por-tag/contracts/events.md`.
 
 ### `item_trocado`
 
@@ -95,8 +103,14 @@ que a primeira cor após o retorno virá com `motivo: primeira_leitura`.
 | Campo | Notas |
 |---|---|
 | `anterior` / `atual` | Tema, com `id`, `nome` e `tags` |
+| `casamento` | O veredito do tema que entrou contra o mapeamento — **acrescentado pela 003** |
 
-Informativo. **Nunca influencia a cor anunciada** (FR-005b).
+Informativo **exceto** quando uma das tags do tema está declarada na seção
+`coresPorTag` da configuração: aí ela decide a cor (FR-005b, emendado pela 003).
+Sem mapeamento declarado, segue sendo só observação.
+
+O `casamento` é o mesmo valor que decidiu a cor efetiva no ciclo — calculado uma
+vez, para que log e decisão não possam discordar.
 
 ### `holyrics_perdido` / `holyrics_recuperado`
 

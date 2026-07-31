@@ -324,6 +324,18 @@ log diz exatamente isso, listando os nomes válidos.
 - **FR-003**: O sistema MUST NOT derivar cor de `tema_trocado` nem de
   `item_trocado`. A troca de item que muda a cor já produz `cor_anunciada`; a
   que não muda, deliberadamente não produz.
+  > **Emendado em 2026-07-31 pela feature 003.** A parte sobre `item_trocado`
+  > fica **intacta**. A parte sobre `tema_trocado` cede: a troca de tema passa a
+  > poder mudar a cor efetiva, pela via do mapeamento declarado na configuração.
+  >
+  > **Esta feature não muda de código por causa disso.** A cor mapeada chega aqui
+  > como qualquer outra, dentro de `cor_anunciada`, e esta feature lê o campo
+  > `cor` sem perguntar de onde ele veio. `tema_trocado` continua sendo ignorado
+  > por ela, exatamente como antes. A emenda é sobre o que pode ter acontecido
+  > **antes** de a cor chegar — assunto da 001 e da 003, não daqui.
+  >
+  > O evento `cor_anunciada` ganhou os campos `origem`, `tag` e `extraída`, que
+  > esta feature não consulta.
 - **FR-004**: O sistema MUST reagir a `apresentacao_encerrada` levando as
   fixtures seguidoras ao estado de repouso.
 - **FR-005**: O sistema MUST manter a cor corrente ao receber `holyrics_perdido`.

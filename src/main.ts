@@ -13,6 +13,7 @@ import {
   registrarLeitura,
 } from './adapters/logger.ts';
 import { criarCliente } from './adapters/holyrics/client.ts';
+import { casarTag, referênciaÉDeOverride } from './core/override.ts';
 import {
   ESTADO_INICIAL,
   aplicarCiclo,
@@ -190,7 +191,22 @@ function main(): void {
     regiao: config.leitura.regiao,
     limiarDeltaE: config.cor.limiarDeltaE,
     ciclosDeConfirmacao: config.cor.ciclosDeConfirmacao,
+    // Ausente na configuração vira lista vazia: nenhum caminho novo é
+    // exercitado e o comportamento é o de antes da feature 003 (003/FR-002).
+    coresPorTag: config.coresPorTag ?? [],
   };
+
+  // Na subida, para que um mapeamento esquecido no arquivo não vire fantasma:
+  // a cor não obedece o telão e nada explica por quê (003/FR-016).
+  if (config.coresPorTag !== undefined && config.coresPorTag.length > 0) {
+    log.info(
+      {
+        mapeamentos: config.coresPorTag.length,
+        tags: config.coresPorTag.map((m) => m.tag),
+      },
+      `override de cor por tag ativo: ${config.coresPorTag.length} mapeamento(s)`,
+    );
+  }
 
   let estado: EstadoDoServiço = ESTADO_INICIAL;
   let disponibilidade: EstadoDeDisponibilidade = DISPONIBILIDADE_INICIAL;
@@ -219,7 +235,18 @@ function main(): void {
         'consulta(s) falharam neste ciclo; as demais seguem',
       ),
     aoLer: (leitura) => {
-      registrarLeitura(log, leitura, parâmetros.regiao, estado.corDeReferência);
+      // O último argumento marca os ciclos em que o ΔE do log NÃO mede ruído de
+      // leitura, porque a referência é uma cor declarada (003/FR-009).
+      registrarLeitura(
+        log,
+        leitura,
+        parâmetros.regiao,
+        estado.corDeReferência,
+        referênciaÉDeOverride(
+          estado.corDeReferência,
+          casarTag(estado.tema, parâmetros.coresPorTag ?? []),
+        ),
+      );
 
       // Disponibilidade primeiro: seus eventos vêm antes na ordem do contrato,
       // e é ela que define o ritmo do próximo ciclo.

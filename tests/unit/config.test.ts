@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validarConfig } from '../../src/adapters/config.ts';
+import { CAFÉ, ehParDistinto } from '../fixtures/tags-unicode.ts';
 
 /** Configuração mínima válida, base para as variações de cada teste. */
 function base() {
@@ -341,5 +342,132 @@ describe('bloco freestyler (T018)', () => {
     it('recusa prazo não positivo', () => {
       expect(validarConfig(comFreestyler({ consultaTimeoutMs: 0 })).ok).toBe(false);
     });
+  });
+});
+
+describe('seção coresPorTag (T011, feature 003)', () => {
+  const AZUL = { r: 0, g: 40, b: 200 };
+  const comTags = (coresPorTag: unknown) => ({ ...base(), coresPorTag });
+
+  it('aceita o array de mapeamentos', () => {
+    const r = validarConfig(
+      comTags([
+        { tag: 'azul-escuro', cor: { r: 0, g: 20, b: 120 } },
+        { tag: 'azul', cor: AZUL },
+      ]),
+    );
+
+    expect(r.ok).toBe(true);
+  });
+
+  it('preserva a ORDEM declarada — é ela que decide o empate (FR-007a)', () => {
+    const r = validarConfig(
+      comTags([
+        { tag: 'azul', cor: AZUL },
+        { tag: '2024', cor: AZUL },
+        { tag: 'natal', cor: AZUL },
+      ]),
+    );
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // Com objeto no lugar de array, "2024" saltaria para a primeira posição.
+    expect(r.valor.coresPorTag?.map((m) => m.tag)).toEqual(['azul', '2024', 'natal']);
+  });
+
+  it('ACEITA a ausência da seção — é o estado de antes desta feature (FR-002)', () => {
+    const r = validarConfig(base());
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.coresPorTag).toBeUndefined();
+  });
+
+  it('aceita a lista vazia, que também desliga a feature', () => {
+    expect(validarConfig(comTags([])).ok).toBe(true);
+  });
+
+  it('ACEITA preto como cor mapeada (FR-003)', () => {
+    expect(validarConfig(comTags([{ tag: 'apagar', cor: { r: 0, g: 0, b: 0 } }])).ok).toBe(true);
+  });
+
+  it('recusa componente de cor fora de 0–255', () => {
+    const r = validarConfig(comTags([{ tag: 'azul', cor: { r: 300, g: 0, b: 0 } }]));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erro).toMatch(/coresPorTag/);
+  });
+
+  it('recusa tag vazia ou só espaços, apontando o índice', () => {
+    expect(validarConfig(comTags([{ tag: '', cor: AZUL }])).ok).toBe(false);
+
+    const r = validarConfig(comTags([{ tag: 'ok', cor: AZUL }, { tag: '   ', cor: AZUL }]));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erro).toMatch(/1/);
+  });
+
+  it('recusa objeto no lugar de array — a forma errada não passa em silêncio', () => {
+    expect(validarConfig(comTags({ azul: AZUL })).ok).toBe(false);
+  });
+
+  it('não vaza valores recebidos na mensagem de erro', () => {
+    const r = validarConfig(comTags([{ tag: 'azul', cor: { r: 999, g: 0, b: 0 } }]));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erro).not.toMatch(/999/);
+  });
+});
+
+describe('invariante de carga do coresPorTag (T013, FR-004)', () => {
+  const AZUL = { r: 0, g: 40, b: 200 };
+  const VERMELHO = { r: 200, g: 0, b: 0 };
+  const comTags = (coresPorTag: unknown) => ({ ...base(), coresPorTag });
+
+  it('recusa duas tags que casam entre si, nomeando AS DUAS', () => {
+    const r = validarConfig(
+      comTags([
+        { tag: 'Azul', cor: AZUL },
+        { tag: ' azul ', cor: VERMELHO },
+      ]),
+    );
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    // Escolher uma em silêncio daria cor estável e inexplicável.
+    expect(r.erro).toMatch(/Azul/);
+    expect(r.erro).toMatch(/azul/);
+  });
+
+  it('recusa o par de grafias Unicode E DIZ que o conflito é de codificação', () => {
+    expect(ehParDistinto(CAFÉ)).toBe(true);
+
+    const r = validarConfig(
+      comTags([
+        { tag: CAFÉ.composta, cor: AZUL },
+        { tag: CAFÉ.decomposta, cor: VERMELHO },
+      ]),
+    );
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    // As duas linhas aparecem IDÊNTICAS na tela do operador. Sem esta menção,
+    // ele leria a acusação como erro do validador.
+    expect(r.erro).toMatch(/codificação|Unicode/i);
+  });
+
+  it('aceita tags que apenas se parecem, sem casar', () => {
+    expect(
+      validarConfig(
+        comTags([
+          { tag: 'azul', cor: AZUL },
+          { tag: 'azul-escuro', cor: VERMELHO },
+          { tag: 'ceu', cor: AZUL },
+          { tag: 'céu', cor: VERMELHO },
+        ]),
+      ).ok,
+    ).toBe(true);
   });
 });

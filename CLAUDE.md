@@ -80,10 +80,19 @@ Actions relevantes:
 - **`GetCurrentPresentation`** — item em exibição, ou `null` se não há
   apresentação. Campos: `id`, `type` (`song`, `verse`, `text`, `image`…), `name`,
   `song_id`, `slide_number`, `total_slides`, `slide_type`.
-- **`GetCurrentTheme`** — tema atual (`id`, `name`, `tags`, `bpm`), ou `null`. O
-  tema é lido e registrado **como observação apenas** — nunca influencia a cor
-  anunciada. As `tags` estão no log para que a calibração revele se a cor extraída
-  basta; usá-las como fonte alternativa de cor seria decisão de outra feature.
+- **`GetCurrentTheme`** — tema atual (`id`, `name`, `tags`, `bpm`), ou `null`.
+  > **Mudou na feature 003 (2026-07-31).** O tema deixou de ser observação pura:
+  > as `tags` passam a decidir a cor **quando, e somente quando, uma delas estiver
+  > declarada** na seção `coresPorTag`. Sem mapeamento, o comportamento antigo
+  > vale palavra por palavra. A diferença é que a decisão saiu do sistema e foi
+  > para o arquivo — derivar cor de tema por conta própria continuaria sendo
+  > adivinhação.
+  >
+  > **Suposição em aberto:** o campo `tags` está verificado (vem sempre, array de
+  > strings, vazio quando não há tag), mas nenhum tema **com** tag foi observado
+  > nesta instalação. Como uma tag chega — espaço, acento, uma entrada por tag ou
+  > string com vírgulas — segue não verificado, e está marcado em
+  > `src/core/override.ts`.
 
 ### Freestyler — Node Connector
 
@@ -178,6 +187,19 @@ prazo de consulta virou configuravel com teto na metade da janela de heartbeat
 (FR-023a), e toda selecao efetivada passou a registrar **quantas e quais**
 fixtures atingiu (FR-025b) — porque grupo vazio e integrador quebrado produzem o
 mesmo sintoma.
+
+**003 — override de cor por tag**: implementada ate a Phase 7 de 9. 261 testes.
+Falta a verificacao contra o Holyrics real (Phase 8). A configuracao ganhou a
+secao `coresPorTag`, um **array ordenado** de `{ tag, cor }` — array e nao objeto
+porque a ordem declarada e a regra de precedencia, e chave JSON so de digitos
+salta de posicao em silencio.
+
+O desenho inteiro cabe numa frase: a cor efetiva, mapeada ou extraida, entra na
+maquina de estabilidade no lugar da extraida. Com isso o override passa a valer
+mesmo quando a extracao nao muda — que e o caso que motivou a feature — sem que
+`src/core/stability.ts` precise saber que override existe. Aquele arquivo ficou
+**intocado**, e isso e a garantia estrutural de que a cor mapeada nao pula
+nenhuma barreira.
 
 ## Estrutura do código (quando existir)
 

@@ -7,6 +7,7 @@
  * repositório, então isto pode mudar junto com quem consome, sem versionamento.
  */
 
+import type { Casamento } from './override.ts';
 import type { Cor, ItemEmExibição, Tema } from './state.ts';
 
 /** Por que o Holyrics foi dado como perdido (FR-017). */
@@ -14,6 +15,9 @@ export type CausaDePerda = 'indisponivel' | 'credencial_recusada';
 
 /** Por que uma cor foi anunciada (FR-007a, FR-009a). */
 export type MotivoDeAnúncio = 'primeira_leitura' | 'mudanca_confirmada';
+
+/** Qual dos dois caminhos produziu a cor (003/FR-015). */
+export type OrigemDaCor = 'extraida' | 'mapeada';
 
 export type Evento =
   | {
@@ -24,6 +28,17 @@ export type Evento =
       readonly motivo: MotivoDeAnúncio;
       /** ΔE contra a referência anterior. Ausente na primeira leitura. */
       readonly deltaE: number | null;
+      /** De onde veio `cor`: da extração ou de uma tag mapeada (FR-015). */
+      readonly origem: OrigemDaCor;
+      /** A tag responsável. `null` quando a origem é a extração. */
+      readonly tag: string | null;
+      /**
+       * O que a extração calculou, preservado mesmo sob override (FR-009).
+       *
+       * `null` só quando a leitura de cor falhou e o override cobriu (FR-008a) —
+       * o que é informação diferente de "a extração coincidiu com a declarada".
+       */
+      readonly extraída: Cor | null;
     }
   | {
       readonly tipo: 'item_trocado';
@@ -54,6 +69,13 @@ export type Evento =
       readonly momento: number;
       readonly anterior: Tema | null;
       readonly atual: Tema | null;
+      /**
+       * O veredito do tema que ENTROU contra o mapeamento (FR-007b, FR-017).
+       *
+       * É o mesmo valor que decidiu a cor efetiva neste ciclo — calculado uma
+       * vez, para que log e decisão não possam discordar.
+       */
+      readonly casamento: Casamento;
     }
   | {
       readonly tipo: 'holyrics_perdido';

@@ -10,6 +10,7 @@
 
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
+import { normalizarTag } from '../core/override.ts';
 
 export const NÍVEIS_DE_LOG = ['debug', 'info', 'warn', 'error'] as const;
 export type NívelDeLog = (typeof NÍVEIS_DE_LOG)[number];
@@ -83,6 +84,25 @@ const esquema = z.object({
        */
       consultaTimeoutMs: z.int().positive().default(2000),
     })
+    .optional(),
+  /**
+   * Override de cor por tag do tema (feature 003). **Opcional**: ausente ou
+   * vazia, a cor vem só da extração, como antes desta feature (FR-002).
+   *
+   * **É array, e isso não é estilo.** A ordem declarada É a regra de precedência
+   * (FR-007), e objeto JSON não a preserva: uma chave como `2024` é índice
+   * canônico, salta para a frente das demais e ainda se reordena entre as outras
+   * numéricas. A regra deixaria de valer sem que nada falhasse (FR-007a).
+   */
+  coresPorTag: z
+    .array(
+      z.object({
+        tag: z.string().refine((t) => t.trim() !== '', {
+          message: 'tag não pode ser vazia nem só espaços',
+        }),
+        cor: corConfigurada,
+      }),
+    )
     .optional(),
 });
 
@@ -183,7 +203,56 @@ export function validarConfig(
     };
   }
 
+  // Duas tags que casam entre si dariam uma vencedora sempre e a outra nunca,
+  // com o log mostrando cor estável e correta enquanto metade da configuração é
+  // letra morta (FR-004).
+  const conflito = acharTagsConflitantes(config.coresPorTag ?? []);
+  if (conflito !== null) {
+    return { ok: false, erro: conflito };
+  }
+
   return { ok: true, valor: config };
+}
+
+/**
+ * Procura duas tags que casem entre si sob a regra de FR-006/FR-006a.
+ *
+ * Devolve a mensagem de erro, ou `null` quando não há conflito.
+ *
+ * A menção à codificação não é enfeite: quando o conflito é de forma Unicode, as
+ * duas tags aparecem **idênticas** na tela do operador, e sem essa palavra ele
+ * leria a acusação como defeito do validador.
+ */
+function acharTagsConflitantes(
+  mapeamentos: readonly { readonly tag: string }[],
+): string | null {
+  const vistas = new Map<string, string>();
+
+  for (const { tag } of mapeamentos) {
+    const chave = normalizarTag(tag);
+    const anterior = vistas.get(chave);
+
+    if (anterior !== undefined) {
+      // As duas casam sob `normalizarTag`. Se ainda assim diferem quando só se
+      // apara e baixa a caixa, o que sobrou é a FORMA UNICODE — diferença
+      // invisível na tela. Sem dizer isso, as duas linhas do erro parecem a
+      // mesma linha repetida e o operador culpa o validador.
+      const diferençaInvisível =
+        anterior.trim().toLowerCase() !== tag.trim().toLowerCase();
+      const causa = diferençaInvisível
+        ? ' — as duas são o mesmo texto em codificação Unicode diferente'
+        : '';
+
+      return (
+        `coresPorTag: as tags "${anterior}" e "${tag}" casam entre si${causa}. ` +
+        `Uma venceria sempre e a outra nunca; renomeie ou remova uma delas`
+      );
+    }
+
+    vistas.set(chave, tag);
+  }
+
+  return null;
 }
 
 export interface ConfigCarregada {

@@ -6,12 +6,22 @@
  */
 
 import type { Evento } from './events.ts';
+import { casarTag, type Casamento, type MapeamentoDeTag } from './override.ts';
 import type { EstadoDoServiço, LeituraDoCiclo } from './state.ts';
 import type { ItemEmExibição, Tema } from './state.ts';
 
 export interface DiferençaDeContexto {
   readonly item: ItemEmExibição | null;
   readonly tema: Tema | null;
+  /**
+   * O veredito do tema contra o mapeamento de tags (feature 003).
+   *
+   * Vem daqui, e não de uma segunda chamada em `aplicarCiclo`, para que a
+   * decisão de cor e o log do evento enxerguem **o mesmo** veredito. Duas
+   * chamadas com a mesma entrada dariam o mesmo resultado; uma só torna
+   * impossível que divirjam.
+   */
+  readonly casamento: Casamento;
   /** Verdadeiro quando a cor de referência deve ser descartada (FR-012). */
   readonly descartarCor: boolean;
   readonly eventos: readonly Evento[];
@@ -33,6 +43,7 @@ function mesmoTema(a: Tema | null, b: Tema | null): boolean {
 export function diferençaDeContexto(
   estado: EstadoDoServiço,
   leitura: LeituraDoCiclo,
+  mapeamentos: readonly MapeamentoDeTag[] = [],
 ): DiferençaDeContexto {
   const eventos: Evento[] = [];
   const momento = leitura.momento;
@@ -80,11 +91,21 @@ export function diferençaDeContexto(
     }
   }
 
-  // O tema é observação: entra em log e estado, nunca na decisão de cor
-  // (FR-005b). Ausência de tema é estado legítimo, não falha (FR-005c).
+  // O tema passou a poder influenciar a cor — mas **só** pela via do mapeamento
+  // declarado pelo operador (feature 003, emenda ao FR-005b). Sem tag mapeada, o
+  // texto original vale palavra por palavra: o tema é observação e nada mais.
+  // Ausência de tema é estado legítimo, não falha (FR-005c).
+  const casamento = casarTag(tema, mapeamentos);
+
   if (leitura.tema.ok && !mesmoTema(estado.tema, tema)) {
-    eventos.push({ tipo: 'tema_trocado', momento, anterior: estado.tema, atual: tema });
+    eventos.push({
+      tipo: 'tema_trocado',
+      momento,
+      anterior: estado.tema,
+      atual: tema,
+      casamento,
+    });
   }
 
-  return { item, tema, descartarCor, eventos };
+  return { item, tema, casamento, descartarCor, eventos };
 }

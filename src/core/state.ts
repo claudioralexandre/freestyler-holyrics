@@ -10,6 +10,7 @@
 
 import { selecionarRegiao } from './color.ts';
 import { ordenarEventos, type Evento } from './events.ts';
+import { resolverCorEfetiva, type MapeamentoDeTag } from './override.ts';
 import { diferençaDeContexto } from './presentation.ts';
 import { avaliarCor } from './stability.ts';
 
@@ -105,6 +106,14 @@ export interface ParâmetrosDoNúcleo {
   readonly limiarDeltaE: number;
   /** Leituras consecutivas acima do limiar para confirmar (FR-007a). */
   readonly ciclosDeConfirmacao: number;
+  /**
+   * Mapeamento de tag do tema para cor fixa (feature 003). **Opcional**, e a
+   * ausência é o que garante 003/FR-002: sem a seção, nenhum caminho novo é
+   * exercitado e o comportamento é o de antes daquela feature.
+   *
+   * A ordem é significativa: é a regra de precedência (003/FR-007).
+   */
+  readonly coresPorTag?: readonly MapeamentoDeTag[];
 }
 
 /** O que um ciclo produz: o novo estado e o que aconteceu de digno de nota. */
@@ -128,7 +137,7 @@ export function aplicarCiclo(
   const eventos: Evento[] = [];
 
   // --- Contexto: item, slide e tema ---------------------------------------
-  const contexto = diferençaDeContexto(estado, leitura);
+  const contexto = diferençaDeContexto(estado, leitura, parâmetros.coresPorTag ?? []);
   eventos.push(...contexto.eventos);
 
   let corDeReferência = contexto.descartarCor ? null : estado.corDeReferência;
@@ -148,15 +157,41 @@ export function aplicarCiclo(
   // cor segue sendo avaliada normalmente (FR-004a).
   const semApresentação = leitura.item.ok && contexto.item === null;
 
-  if (leitura.cor.ok && !semApresentação) {
-    const selecionada = selecionarRegiao(leitura.cor.valor, parâmetros.regiao);
+  // ⚠️ As duas condições abaixo eram UMA só antes da feature 003, e continuam
+  // vizinhas. Elas divergem de propósito e afrouxar uma não pode afrouxar a
+  // outra:
+  //
+  //   sem apresentação  →  nada é anunciado, mapeado ou não   (003/FR-014a)
+  //   sem extração      →  o override ainda vale              (003/FR-008a)
+  //
+  // Afrouxar a primeira acenderia a luz exatamente no momento em que a 002
+  // decidiu não comandar nada (002/FR-027). Manter a segunda fechada deixaria a
+  // luz errada só porque uma consulta irrelevante falhou.
+  if (!semApresentação) {
+    // A extração deixou de ser pré-condição: `null` aqui é entrada legítima, e
+    // a cor declarada cobre. Região inexistente cai no mesmo caso (FR-002a).
+    const selecionada = leitura.cor.ok
+      ? selecionarRegiao(leitura.cor.valor, parâmetros.regiao)
+      : null;
+    const extraída = selecionada !== null && selecionada.ok ? selecionada.valor : null;
 
-    if (selecionada.ok) {
-      horárioDaCor = leitura.momento;
+    // `últimoSucesso.cor` é registro de LEITURA, não de anúncio: só avança com
+    // extração válida, mesmo sob override. Confundir os dois faria o diagnóstico
+    // de "há quanto tempo o Holyrics não responde cor" mentir justamente durante
+    // um override.
+    if (extraída !== null) horárioDaCor = leitura.momento;
 
+    const efetiva = resolverCorEfetiva(extraída, contexto.casamento);
+
+    if (efetiva !== null) {
+      // É a EFETIVA que entra na máquina de estabilidade — nunca a extraída.
+      // É só isso que faz 003/FR-010 e FR-011 valerem: na troca para um tema
+      // mapeado a efetiva muda ainda que a extraída não mude, e o mecanismo
+      // anti-flicker detecta sem saber que override existe. `stability.ts`
+      // permanece intocado, o que é a garantia estrutural de 003/FR-012.
       const decisão = avaliarCor(
         { corDeReferência, candidata, ciclosDeConfirmação },
-        selecionada.valor,
+        efetiva.cor,
         parâmetros,
       );
 
@@ -172,12 +207,15 @@ export function aplicarCiclo(
           anterior: decisão.anúncio.anterior,
           motivo: decisão.anúncio.motivo,
           deltaE: decisão.anúncio.deltaE,
+          origem: efetiva.origem,
+          tag: efetiva.tag,
+          extraída: efetiva.extraída,
         });
       }
     }
-    // Região inexistente: leitura descartada, referência preservada (FR-002a).
+    // Sem extração e sem override: nada a anunciar, referência preservada
+    // (FR-005).
   }
-  // Consulta de cor falhou: referência preservada, nada anunciado (FR-005).
 
   return {
     estado: {

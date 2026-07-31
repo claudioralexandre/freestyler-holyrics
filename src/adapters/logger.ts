@@ -12,6 +12,7 @@ import pino from 'pino';
 import type { Config } from './config.ts';
 import { deltaE } from '../core/color.ts';
 import type { Evento } from '../core/events.ts';
+import type { Casamento } from '../core/override.ts';
 import type { Cor, LeituraDoCiclo } from '../core/state.ts';
 
 export type Logger = pino.Logger;
@@ -27,6 +28,38 @@ function descreverCor(cor: Cor) {
 }
 
 /**
+ * Registra o veredito do tema contra o mapeamento de tags (feature 003).
+ *
+ * Só dois dos cinco casos viram linha, e a escolha é deliberada:
+ *
+ * - `nenhuma_mapeada` é o sintoma de tag digitada diferente nos dois lados, que
+ *   sem esta linha tem exatamente o mesmo sintoma de override nenhum — a cor
+ *   simplesmente não obedece (FR-017, SC-005).
+ * - `mapeada` **com preteridas** é o empate, e o operador precisa saber qual
+ *   venceu para mover a linha certa no arquivo (FR-007b).
+ *
+ * `sem_tags`, `sem_tema` e `sem_mapeamento` **não** viram linha: são o estado
+ * normal de quem não usa a feature, e registrá-los encheria de ruído o log de
+ * todo culto.
+ */
+function registrarCasamento(log: Logger, casamento: Casamento): void {
+  if (casamento.tipo === 'nenhuma_mapeada') {
+    log.info(
+      { tagsObservadas: casamento.tags },
+      `tema traz tags, nenhuma mapeada: ${casamento.tags.join(', ')}`,
+    );
+    return;
+  }
+
+  if (casamento.tipo === 'mapeada' && casamento.preteridas.length > 0) {
+    log.info(
+      { tagVencedora: casamento.tag, preteridas: casamento.preteridas },
+      `mais de uma tag mapeada; venceu "${casamento.tag}" por vir antes na configuração`,
+    );
+  }
+}
+
+/**
  * Registra um evento no nível `info`.
  *
  * É este o log que o operador lê depois do culto: contém os eventos, não uma
@@ -34,7 +67,11 @@ function descreverCor(cor: Cor) {
  */
 export function registrarEvento(log: Logger, evento: Evento): void {
   switch (evento.tipo) {
-    case 'cor_anunciada':
+    case 'cor_anunciada': {
+      // Com duas fontes de cor, a linha precisa dizer de qual delas veio — senão
+      // um override esquecido no arquivo vira fantasma: a cor não obedece o
+      // telão e nada explica por quê (FR-015).
+      const porTag = evento.origem === 'mapeada';
       log.info(
         {
           evento: evento.tipo,
@@ -42,10 +79,20 @@ export function registrarEvento(log: Logger, evento: Evento): void {
           anterior: evento.anterior ? descreverCor(evento.anterior) : null,
           motivo: evento.motivo,
           deltaE: evento.deltaE === null ? null : Number(evento.deltaE.toFixed(2)),
+          origem: evento.origem,
+          tag: evento.tag,
+          // Preservada mesmo sob override, para o operador julgar depois se
+          // ainda precisa dele (FR-009). Nula quando a extração falhou e a cor
+          // declarada cobriu (FR-008a) — o que é diferente de ela ter
+          // coincidido com a declarada.
+          extraída: evento.extraída ? descreverCor(evento.extraída) : null,
         },
-        `cor anunciada: ${hex(evento.cor)}`,
+        porTag
+          ? `cor anunciada: ${hex(evento.cor)} — da tag "${evento.tag ?? ''}"`
+          : `cor anunciada: ${hex(evento.cor)}`,
       );
       return;
+    }
 
     case 'item_trocado':
       log.info(
@@ -89,12 +136,15 @@ export function registrarEvento(log: Logger, evento: Evento): void {
       log.info(
         {
           evento: evento.tipo,
-          // As tags ficam no log para a calibração — nunca decidem cor (FR-005b).
+          // As tags decidem cor apenas quando declaradas na configuração
+          // (feature 003, emenda ao FR-005b). Sem mapeamento, seguem sendo só
+          // observação.
           de: evento.anterior ? { id: evento.anterior.id, nome: evento.anterior.nome, tags: evento.anterior.tags } : null,
           para: evento.atual ? { id: evento.atual.id, nome: evento.atual.nome, tags: evento.atual.tags } : null,
         },
         `tema trocado: ${evento.atual?.nome ?? '(nenhum)'}`,
       );
+      registrarCasamento(log, evento.casamento);
       return;
 
     case 'holyrics_perdido':
@@ -124,11 +174,19 @@ export function registrarLeitura(
   leitura: LeituraDoCiclo,
   regiaoEscolhida: number,
   referência: Cor | null,
+  /** Verdadeiro quando a referência é uma cor declarada, não extraída. */
+  referênciaDeOverride = false,
 ): void {
   if (!log.isLevelEnabled('debug')) return;
 
   // ΔE da região escolhida contra a referência atual. É este número que a
   // calibração do limiar observa: quanto ele oscila com o telão parado.
+  //
+  // ⚠️ **Só vale isso quando a referência veio da extração.** Com override
+  // ativo a referência é a cor declarada pelo operador, e o número passa a medir
+  // a distância entre a extração e uma cor escolhida à mão — que não diz nada
+  // sobre ruído de leitura. `referênciaDeOverride` marca esses ciclos para que
+  // ninguém calibre o limiar em cima deles.
   const escolhida = leitura.cor.ok
     ? leitura.cor.valor.regioes[regiaoEscolhida]
     : undefined;
@@ -140,6 +198,11 @@ export function registrarLeitura(
   log.debug(
     {
       deltaE: diferença,
+      referênciaDeOverride,
+      // Com override, o ΔE acima não mede ruído. A cor extraída de cada leitura
+      // continua em `regioes` (marcada com `escolhida`), e é comparando ELA
+      // entre ciclos que se confirma que a extração não mudou.
+      deltaEMedeRuído: !referênciaDeOverride,
       regioes: leitura.cor.ok
         ? leitura.cor.valor.regioes.map((c, i) => ({
             i,
