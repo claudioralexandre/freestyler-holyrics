@@ -323,3 +323,59 @@ export function criarLogger(opções: OpçõesDeLogger): Logger {
     return pino(opçõesBase);
   }
 }
+
+/**
+ * Logger cujo `pino` interno pode ser substituído sem que os portadores da
+ * referência saibam (004/FR-018).
+ *
+ * **Por que a indireção existe.** A SC-002 não abre exceção: nenhum campo da
+ * configuração pode exigir reinício, e `log.arquivo` é campo. Trocar o destino
+ * exige um transporte novo — mas todos os componentes já capturaram a referência
+ * do logger na subida. Mutar só `log.level`, que o `pino` aceita nativamente,
+ * resolveria metade: a página confirmaria a troca de arquivo e os registros
+ * continuariam indo para o antigo.
+ *
+ * A alternativa era excetuar o destino de log da recarga a quente, contra a
+ * SC-002 e a FR-010. Está registrada em `plan.md § Complexity Tracking`.
+ *
+ * ⚠️ **SUPOSIÇÃO DE PLATAFORMA NÃO VERIFICADA (Princípio I).** O transporte do
+ * `pino` roda em worker. O que acontece com o worker antigo quando ele é
+ * descartado **durante** uma escrita concorrente não foi observado — a troca
+ * pode perder as últimas linhas em trânsito, ou não. Verificação pendente:
+ * cenário 31 de `specs/004-painel-de-configuracao/quickstart.md`; detalhes em
+ * `research.md` §8. Enquanto isso, a troca é feita na ordem menos arriscada
+ * possível: o logger novo é montado ANTES de o antigo ser abandonado.
+ */
+export interface LoggerRecarregável {
+  /** A referência estável, distribuída na subida e nunca substituída. */
+  readonly log: Logger;
+  /** Troca o `pino` interno. Os registros seguintes obedecem ao novo. */
+  aplicar(novoLog: Config['log']): void;
+}
+
+export function criarLoggerRecarregável(
+  opções: OpçõesDeLogger,
+): LoggerRecarregável {
+  let atual = criarLogger(opções);
+
+  // Delega tudo ao `pino` corrente. `Reflect.get` com o receiver certo preserva
+  // o `this` dos métodos do pino — sem isso, `log.info` perderia o contexto.
+  const estável = new Proxy({} as Logger, {
+    get: (_alvo, prop) => {
+      const valor = Reflect.get(atual, prop, atual) as unknown;
+      return typeof valor === 'function' ? valor.bind(atual) : valor;
+    },
+    set: (_alvo, prop, valor) => Reflect.set(atual, prop, valor, atual),
+    has: (_alvo, prop) => prop in atual,
+  });
+
+  return {
+    log: estável,
+    aplicar(novoLog) {
+      // Monta o novo ANTES de largar o antigo: se a criação falhar, o que já
+      // funcionava continua funcionando (Princípio IV).
+      const substituto = criarLogger({ ...opções, log: novoLog });
+      atual = substituto;
+    },
+  };
+}

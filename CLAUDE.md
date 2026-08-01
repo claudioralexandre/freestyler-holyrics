@@ -20,7 +20,12 @@ existe.
 
 ### Fora de escopo (por enquanto)
 
-- Interface web ou qualquer UI. O mapeamento vive em arquivo de configuração.
+- ~~Interface web ou qualquer UI. O mapeamento vive em arquivo de configuração.~~
+  **Caiu na 004 (2026-07-31).** O mapeamento continua vivendo no arquivo — o que
+  mudou é que ele deixou de ser o **único** caminho até lá. A página lê e escreve
+  o mesmo arquivo, e o que motivou a reversão foi a 003: mapear uma tag exige
+  saber quais tags o tema em exibição carrega, e essa informação só é útil
+  enquanto o culto acontece.
 - Cenas de luz complexas, chases, efeitos temporizados. O escopo é cor sólida.
 - Suporte a outros softwares de projeção ou de iluminação.
 
@@ -36,13 +41,15 @@ existe.
 |---|---|
 | Stack | Node.js 22 LTS + TypeScript, módulos ESM |
 | Gatilho | Cor do tema em exibição + troca de item + avanço de slide |
-| Execução | Serviço headless, mapeamento em arquivo de config |
+| Execução | Serviço headless **com painel web local** (004). O arquivo segue sendo a única fonte de verdade; a página é um segundo caminho até ele |
 | Topologia | Alvo: tudo na mesma máquina Windows por `localhost`. **Verificado entre duas máquinas na LAN** — ver ressalva do token abaixo |
 | Diferença de cor | Perceptual (ΔE CIEDE2000), não distância em RGB |
 | Anti-flicker | Limiar de ΔE **mais** confirmação por permanência (N leituras seguidas) |
 | Bibliotecas | `culori` (cor), `pino` + `pino-roll` (log), `zod` (config), `vitest` (testes) |
 | HTTP | `fetch` nativo do Node com `AbortSignal.timeout()` — sem dependência |
 | Config | Arquivo JSON + `HOLYRICS_TOKEN`, `CONFIG_PATH`, `LOG_LEVEL`. Sem flags de CLI |
+| Recarga | **A quente, por efeito nomeado** (004). Cada campo produz o efeito dele e nenhum outro; só a página dispara recarga, edição à mão vale na subida seguinte |
+| Painel | `node:http` + SSE, sem dependência nova. Bloco `painel` **ausente LIGA** com padrões — o inverso da convenção do bloco `freestyler`, e de propósito |
 
 O Freestyler é Windows-only, o que fixa a topologia. Holyrics, Freestyler e o
 integrador rodam no mesmo PC — não há rede entre eles.
@@ -201,13 +208,37 @@ mesmo quando a extracao nao muda — que e o caso que motivou a feature — sem 
 **intocado**, e isso e a garantia estrutural de que a cor mapeada nao pula
 nenhuma barreira.
 
+**004 — painel de configuracao**: implementada ate a Phase 9 de 12. 356 testes.
+Falta a verificacao pelo navegador (Phase 10 parcial) e a do culto (Phase 11).
+
+Duas premissas cairam com ela. A primeira: **configuracao deixou de ser
+constante durante a vida do processo**. Cada campo alterado produz um **efeito
+nomeado** (`src/core/recarga.ts`), e caminho fora da tabela vira o efeito
+`desconhecido` — que e alarme, nao padrao silencioso. A segunda: o estado
+observavel da 001 **nao bastava**. Faltavam cor extraida, origem, tag e
+disponibilidade do Freestyler; os tres primeiros so existiam dentro do evento
+`cor_anunciada`, que e instantaneo.
+
+Tres decisoes que a implementacao obrigou, e que a spec nao previa:
+
+- **O diff compara as configuracoes VALIDADAS, nao os JSON crus.** O esquema
+  materializa padroes, entao comparar cru com mesclado acusaria "o painel mudou"
+  na primeira gravacao de qualquer instalacao.
+- **A mesclagem recebe a lista de chaves conhecidas.** Sem ela, omitir o bloco
+  `freestyler` para desligar a saida seria indistinguivel de omitir um
+  comentario que a pagina nao conhece.
+- **Desfazer uma recarga recusada reescreve o conteudo EXATO de antes.** Uma
+  reserializacao mudaria o hash e a submissao seguinte bateria num conflito que
+  ninguem causou.
+
 ## Estrutura do código (quando existir)
 
 ```
-src/core/      # Puro: sem I/O, sem relógio, sem log. É onde vive a decisão
-src/adapters/  # Finos: traduzem formato. Holyrics, config, log
-src/service/   # Loop, disponibilidade, backoff. Nem puro, nem tradução
-tests/unit/    # Toda lógica pura, venha da pasta que vier
+src/core/            # Puro: sem I/O, sem relógio, sem log. É onde vive a decisão
+src/adapters/        # Finos: traduzem formato. Holyrics, Freestyler, config, log
+src/adapters/painel/ # Servidor HTTP e a página (HTML como string TypeScript)
+src/service/         # Loop, disponibilidade, backoff, recarga. Nem puro, nem tradução
+tests/unit/          # Toda lógica pura, venha da pasta que vier
 ```
 
 `core/` não importa nada de `adapters/` nem de `service/`. É essa regra que

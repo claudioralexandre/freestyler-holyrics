@@ -471,3 +471,110 @@ describe('invariante de carga do coresPorTag (T013, FR-004)', () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Feature 004 — bloco `painel`
+// ---------------------------------------------------------------------------
+
+describe('bloco painel (004/T024)', () => {
+  it('AUSENTE liga a página em 127.0.0.1:3333 (FR-004, FR-003a)', () => {
+    // ⚠️ Convenção INVERSA à do bloco `freestyler`, e de propósito. Lá, ausência
+    // desliga. Aqui, ausência liga — porque a alternativa é circular: o operador
+    // descobriria que a página existe abrindo o arquivo que ela existe para ele
+    // não precisar abrir.
+    const r = validarConfig(base());
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.painel).toEqual({
+      habilitado: true,
+      host: '127.0.0.1',
+      port: 3333,
+    });
+  });
+
+  it('o padrão NÃO é escutar na rede (FR-003a)', () => {
+    const r = validarConfig(base());
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // Ligada por padrão MAIS aberta por padrão exporia edição de configuração em
+    // toda instalação, inclusive nas de quem nunca quis a página.
+    expect(r.valor.painel.host).toBe('127.0.0.1');
+    expect(r.valor.painel.host).not.toBe('0.0.0.0');
+  });
+
+  it('habilitado: false desliga, e é ato explícito (FR-004)', () => {
+    const c = { ...base(), painel: { habilitado: false } };
+
+    const r = validarConfig(c);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.painel.habilitado).toBe(false);
+  });
+
+  it('bloco parcial recebe os padrões nos campos omitidos', () => {
+    const c = { ...base(), painel: { port: 9090 } };
+
+    const r = validarConfig(c);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.painel).toEqual({
+      habilitado: true,
+      host: '127.0.0.1',
+      port: 9090,
+    });
+  });
+
+  it('aceita abrir para a rede quando declarado (FR-003)', () => {
+    const c = { ...base(), painel: { host: '0.0.0.0' } };
+
+    const r = validarConfig(c);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.painel.host).toBe('0.0.0.0');
+  });
+
+  it('recusa host vazio', () => {
+    const r = validarConfig({ ...base(), painel: { host: '' } });
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erro).toMatch(/painel\.host/);
+  });
+
+  it('recusa porta fora de faixa', () => {
+    expect(validarConfig({ ...base(), painel: { port: 0 } }).ok).toBe(false);
+    expect(validarConfig({ ...base(), painel: { port: 70000 } }).ok).toBe(false);
+  });
+
+  it('recusa porta não inteira', () => {
+    expect(validarConfig({ ...base(), painel: { port: 3333.5 } }).ok).toBe(false);
+  });
+});
+
+describe('o token não tem como vazar pela configuração (004/T039, FR-015, SC-008)', () => {
+  it('a configuração validada não contém o token, qualquer que seja ele', () => {
+    // Este teste não conserta nada hoje: `carregarConfig` devolve
+    // `{ config, token, caminho }` como IRMÃOS, e o token nunca esteve dentro de
+    // `Config`. A garantia é estrutural.
+    //
+    // Ele existe para que continue sendo. A página serializa `Config` inteira
+    // numa resposta HTTP; se alguém "melhorar" a estrutura movendo o token para
+    // dentro, a FR-015 e a SC-008 cairiam sem que nenhum outro teste reclamasse.
+    const segredo = 'token-secretissimo-do-holyrics-123';
+
+    const r = validarConfig(base(), {
+      HOLYRICS_TOKEN: segredo,
+      CONFIG_PATH: './config/config.json',
+    });
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(JSON.stringify(r.valor)).not.toContain(segredo);
+    expect(JSON.stringify(r.valor)).not.toMatch(/token/i);
+  });
+});

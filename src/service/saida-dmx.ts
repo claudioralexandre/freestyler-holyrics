@@ -40,6 +40,13 @@ export interface SaídaDMX {
    */
   aoReconectar(): Promise<void>;
   /**
+   * Troca cor de repouso e nome do grupo a quente (004/FR-018).
+   *
+   * Enfileirado **depois** do envio em curso: a FR-020 proíbe interromper um
+   * envio já iniciado, e é o mesmo `emAndamento` que serializa tudo aqui.
+   */
+  atualizarParâmetros(novos: ParâmetrosDaSaída): Promise<void>;
+  /**
    * Lê e registra o inventário do Freestyler: versão, grupos, fixtures e
    * endereços (FR-025a).
    *
@@ -59,7 +66,10 @@ function mesmaCor(a: Cor, b: Cor): boolean {
 }
 
 export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
-  const { cliente, parâmetros, log } = opções;
+  const { cliente, log } = opções;
+  // `let`, e não desestruturação constante: a recarga a quente troca a cor de
+  // repouso e o nome do grupo sem recriar a saída (004/FR-018, FR-019).
+  let parâmetros = opções.parâmetros;
 
   let estado = estadoInicial();
   let emAndamento: Promise<void> = Promise.resolve();
@@ -258,6 +268,25 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
   return {
     estado: () => estado,
 
+    async atualizarParâmetros(novos) {
+      // Espera o envio EM CURSO terminar antes de trocar (004/FR-020). Trocar no
+      // meio faria o plano já calculado escrever a cor nova no grupo antigo — ou
+      // o contrário, dependendo de onde a troca caísse.
+      await emAndamento.catch(() => undefined);
+
+      const grupoMudou = novos.nomeDoGrupo !== parâmetros.nomeDoGrupo;
+      parâmetros = novos;
+
+      if (grupoMudou) {
+        // Esquece o grupo resolvido e o que foi escrito: o nome novo pode
+        // apontar para outra posição na mesa, e não há como saber o que está
+        // valendo lá agora (002/FR-011, FR-020).
+        estado = { ...estado, grupo: null, últimoConjuntoEscrito: null };
+        últimaFalhaDeResolução = '';
+        if (estado.jáHouveCor) await enfileirar();
+      }
+    },
+
     async registrarInventário() {
       const [versão, grupos, fixtures, endereços] = await Promise.all([
         cliente.consultar(CODIGO.versao),
@@ -276,6 +305,13 @@ export function criarSaídaDMX(opções: OpçõesDaSaída): SaídaDMX {
       // Reaproveitados pela linha da seleção (FR-025b), que assim não precisa
       // consultar os nomes de novo a cada troca de grupo.
       nomesDeFixtures = nomes;
+
+      // As posições vazias são buracos do protocolo, não grupos. Guardá-las
+      // faria a página oferecer nomes em branco como alternativa (004/FR-009).
+      estado = {
+        ...estado,
+        gruposConhecidos: grupos.valor.campos.filter((g) => g.trim() !== ''),
+      };
 
       log.info(
         {

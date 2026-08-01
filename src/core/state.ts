@@ -9,7 +9,7 @@
  */
 
 import { selecionarRegiao } from './color.ts';
-import { ordenarEventos, type Evento } from './events.ts';
+import { ordenarEventos, type Evento, type OrigemDaCor } from './events.ts';
 import { resolverCorEfetiva, type MapeamentoDeTag } from './override.ts';
 import { diferençaDeContexto } from './presentation.ts';
 import { avaliarCor } from './stability.ts';
@@ -87,6 +87,24 @@ export interface EstadoDoServiço {
   readonly item: ItemEmExibição | null;
   readonly tema: Tema | null;
   readonly últimoSucesso: ÚltimoSucesso;
+  /**
+   * Última extração **bem-sucedida** (004/FR-005).
+   *
+   * Note "última", e não "deste ciclo": sobrevive a um ciclo cuja consulta de
+   * cor falhou. A leitura ingênua apagaria o valor da tela a cada falha isolada,
+   * e o operador leria isso como "o Holyrics parou de mandar cor".
+   */
+  readonly corExtraída: Cor | null;
+  /**
+   * De onde veio `corDeReferência` — a cor que **está valendo** (004/FR-008).
+   *
+   * ⚠️ Não é a origem da leitura deste ciclo. Sob confirmação por permanência,
+   * as duas divergem por N ciclos, e é justamente aí que a página está sendo
+   * olhada. Ver o caso decisivo em `tests/unit/state.test.ts`.
+   */
+  readonly origemDaCor: OrigemDaCor | null;
+  /** A tag responsável por `corDeReferência`. `null` quando a origem é extração. */
+  readonly tagDaCor: string | null;
 }
 
 export const ESTADO_INICIAL: EstadoDoServiço = {
@@ -96,6 +114,9 @@ export const ESTADO_INICIAL: EstadoDoServiço = {
   item: null,
   tema: null,
   últimoSucesso: { cor: null, item: null, tema: null },
+  corExtraída: null,
+  origemDaCor: null,
+  tagDaCor: null,
 };
 
 /** Parâmetros de decisão que o núcleo recebe do chamador (FR-018). */
@@ -146,6 +167,12 @@ export function aplicarCiclo(
     ? 0
     : estado.ciclosDeConfirmação;
 
+  // Os três acompanham a referência no descarte (004/FR-005). Deixá-los para
+  // trás faria a página descrever uma cor que não existe mais.
+  let corExtraída = contexto.descartarCor ? null : estado.corExtraída;
+  let origemDaCor = contexto.descartarCor ? null : estado.origemDaCor;
+  let tagDaCor = contexto.descartarCor ? null : estado.tagDaCor;
+
   // --- Conteúdo: a cor -----------------------------------------------------
   let horárioDaCor = estado.últimoSucesso.cor;
 
@@ -179,7 +206,10 @@ export function aplicarCiclo(
     // extração válida, mesmo sob override. Confundir os dois faria o diagnóstico
     // de "há quanto tempo o Holyrics não responde cor" mentir justamente durante
     // um override.
-    if (extraída !== null) horárioDaCor = leitura.momento;
+    if (extraída !== null) {
+      horárioDaCor = leitura.momento;
+      corExtraída = extraída;
+    }
 
     const efetiva = resolverCorEfetiva(extraída, contexto.casamento);
 
@@ -200,6 +230,12 @@ export function aplicarCiclo(
       ciclosDeConfirmação = decisão.ciclosDeConfirmação;
 
       if (decisão.anúncio !== null) {
+        // A origem só muda quando a REFERÊNCIA muda, e é isso que faz os dois
+        // campos descreverem o que está valendo em vez do que foi lido agora
+        // (004/FR-008).
+        origemDaCor = efetiva.origem;
+        tagDaCor = efetiva.tag;
+
         eventos.push({
           tipo: 'cor_anunciada',
           momento: leitura.momento,
@@ -229,6 +265,9 @@ export function aplicarCiclo(
         item: leitura.item.ok ? leitura.momento : estado.últimoSucesso.item,
         tema: leitura.tema.ok ? leitura.momento : estado.últimoSucesso.tema,
       },
+      corExtraída,
+      origemDaCor,
+      tagDaCor,
     },
     eventos: ordenarEventos(eventos),
   };

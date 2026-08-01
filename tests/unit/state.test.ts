@@ -624,3 +624,185 @@ describe('últimoSucesso.cor é registro de LEITURA, não de anúncio (T033)', (
     expect(r.estado.últimoSucesso.cor).toBe(7000);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Feature 004 — o estado observável fica completo
+//
+// Estes três campos já existiam DENTRO do evento `cor_anunciada`, que é
+// instantâneo: entre dois anúncios não havia de onde lê-los. A página precisa
+// deles a todo momento (004/FR-005, FR-008), então eles passam a viver no
+// estado.
+// ---------------------------------------------------------------------------
+
+describe('corExtraída no estado (004/T003, FR-005)', () => {
+  it('guarda a extração do ciclo', () => {
+    const r = aplicarCiclo(ESTADO_INICIAL, cicloComTema(CINZA, null), PARÂMETROS);
+
+    expect(r.estado.corExtraída).toEqual(CINZA);
+  });
+
+  it('é null enquanto nenhuma extração tiver dado certo', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      {
+        momento: 1000,
+        cor: { ok: false, motivo: 'indisponivel' },
+        item: { ok: true, valor: ITEM_PÚBLICO },
+        tema: { ok: true, valor: null },
+      },
+      PARÂMETROS,
+    );
+
+    expect(r.estado.corExtraída).toBeNull();
+  });
+
+  it('SOBREVIVE a um ciclo cuja leitura de cor falhou', () => {
+    // É a diferença entre "a última extração bem-sucedida" e "a extração deste
+    // ciclo". A segunda apagaria o valor da tela a cada falha isolada de
+    // consulta, e o operador leria isso como "o Holyrics parou de mandar cor".
+    const primeiro = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, null, 1000),
+      PARÂMETROS,
+    );
+
+    const segundo = aplicarCiclo(
+      primeiro.estado,
+      {
+        momento: 2000,
+        cor: { ok: false, motivo: 'indisponivel' },
+        item: { ok: true, valor: ITEM_PÚBLICO },
+        tema: { ok: true, valor: null },
+      },
+      PARÂMETROS,
+    );
+
+    expect(segundo.estado.corExtraída).toEqual(CINZA);
+  });
+
+  it('sob override, guarda a EXTRAÍDA e não a que está valendo', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'azul')),
+      COM_MAPA,
+    );
+
+    expect(r.estado.corDeReferência).toEqual(AZUL_MAPEADO);
+    expect(r.estado.corExtraída).toEqual(CINZA);
+  });
+});
+
+describe('origemDaCor e tagDaCor descrevem o que ESTÁ VALENDO (004/T005, FR-008)', () => {
+  it('sem mapeamento, a origem é extraida e não há tag', () => {
+    const r = aplicarCiclo(ESTADO_INICIAL, cicloComTema(CINZA, null), PARÂMETROS);
+
+    expect(r.estado.origemDaCor).toBe('extraida');
+    expect(r.estado.tagDaCor).toBeNull();
+  });
+
+  it('com tema mapeado, nomeia a origem e a tag responsável', () => {
+    const r = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'azul')),
+      COM_MAPA,
+    );
+
+    expect(r.estado.origemDaCor).toBe('mapeada');
+    expect(r.estado.tagDaCor).toBe('azul');
+  });
+
+  it('null antes de qualquer cor valer', () => {
+    expect(ESTADO_INICIAL.origemDaCor).toBeNull();
+    expect(ESTADO_INICIAL.tagDaCor).toBeNull();
+  });
+
+  it('CASO DECISIVO: enquanto a cor mapeada não é confirmada, a origem é a da cor que vale', () => {
+    // O erro fácil da feature inteira: ler a origem do ciclo corrente em vez da
+    // origem da referência. A página mostraria a tag certa DURANTE os ciclos em
+    // que a cor mapeada ainda não vale — mentindo exatamente quando o operador
+    // está olhando para ela.
+    const exigente: ParâmetrosDoNúcleo = {
+      ...COM_MAPA,
+      ciclosDeConfirmacao: 3,
+    };
+
+    // Primeiro ciclo: sem tema mapeado, a extraída é adotada de imediato.
+    const inicial = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, null, 1000),
+      exigente,
+    );
+    expect(inicial.estado.origemDaCor).toBe('extraida');
+
+    // Segundo ciclo: entra o tema mapeado. A cor mapeada é candidata, ainda não
+    // confirmada — a referência continua sendo a extraída do ciclo anterior.
+    const durante = aplicarCiclo(
+      inicial.estado,
+      cicloComTema(CINZA, temaCom('t1', 'azul'), 2000),
+      exigente,
+    );
+
+    expect(durante.estado.corDeReferência).toEqual(CINZA);
+    expect(durante.estado.candidata).toEqual(AZUL_MAPEADO);
+    // A referência ainda é a extraída, então a origem também é.
+    expect(durante.estado.origemDaCor).toBe('extraida');
+    expect(durante.estado.tagDaCor).toBeNull();
+  });
+
+  it('a origem passa a ser mapeada no ciclo em que a cor mapeada é confirmada', () => {
+    const exigente: ParâmetrosDoNúcleo = { ...COM_MAPA, ciclosDeConfirmacao: 2 };
+
+    let estado = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, null, 1000),
+      exigente,
+    ).estado;
+
+    estado = aplicarCiclo(
+      estado,
+      cicloComTema(CINZA, temaCom('t1', 'azul'), 2000),
+      exigente,
+    ).estado;
+    expect(estado.origemDaCor).toBe('extraida');
+
+    estado = aplicarCiclo(
+      estado,
+      cicloComTema(CINZA, temaCom('t1', 'azul'), 3000),
+      exigente,
+    ).estado;
+
+    expect(estado.corDeReferência).toEqual(AZUL_MAPEADO);
+    expect(estado.origemDaCor).toBe('mapeada');
+    expect(estado.tagDaCor).toBe('azul');
+  });
+});
+
+describe('descarte conjunto por troca de contexto (004/T007)', () => {
+  it('os três campos voltam a null junto com a corDeReferência', () => {
+    const comCor = aplicarCiclo(
+      ESTADO_INICIAL,
+      cicloComTema(CINZA, temaCom('t1', 'azul'), 1000),
+      COM_MAPA,
+    ).estado;
+
+    expect(comCor.corDeReferência).not.toBeNull();
+    expect(comCor.origemDaCor).not.toBeNull();
+
+    // Sem apresentação: a referência é descartada (001/FR-005).
+    const semApresentação = aplicarCiclo(
+      comCor,
+      {
+        momento: 2000,
+        cor: { ok: true, valor: { regioes: [CINZA] } },
+        item: { ok: true, valor: null },
+        tema: { ok: true, valor: null },
+      },
+      COM_MAPA,
+    ).estado;
+
+    expect(semApresentação.corDeReferência).toBeNull();
+    // Deixar origem e tag para trás descreveria uma cor que não existe mais.
+    expect(semApresentação.origemDaCor).toBeNull();
+    expect(semApresentação.tagDaCor).toBeNull();
+  });
+});

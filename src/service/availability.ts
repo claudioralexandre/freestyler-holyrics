@@ -25,6 +25,15 @@ export interface EstadoDeDisponibilidade {
    * mensagem acionável, só um aviso genérico de consulta falha.
    */
   readonly jáAvaliado: boolean;
+  /**
+   * Por que está indisponível. `null` quando está disponível (004/FR-005).
+   *
+   * A causa já era calculada para o evento `holyrics_perdido`, mas evento é
+   * instantâneo: entre duas transições não havia de onde lê-la. A página precisa
+   * dela a todo momento, senão "não alcanço a máquina" e "o token foi recusado"
+   * viram a mesma frase — e elas pedem ações opostas do operador.
+   */
+  readonly causa: CausaDePerda | null;
 }
 
 export interface VereditoDeDisponibilidade extends EstadoDeDisponibilidade {
@@ -35,6 +44,7 @@ export const DISPONIBILIDADE_INICIAL: EstadoDeDisponibilidade = {
   disponível: false,
   falhasConsecutivas: 0,
   jáAvaliado: false,
+  causa: null,
 };
 
 /**
@@ -67,6 +77,11 @@ export function avaliarDisponibilidade(
     ? estado.falhasConsecutivas + 1
     : 0;
   const eventos: Evento[] = [];
+  // Recalculada a cada ciclo, e não só na transição: o motivo pode mudar sem
+  // nenhum ciclo bem-sucedido no meio — foi o que aconteceu quando o Holyrics
+  // subiu com o integrador já rodando, e as falhas passaram de `indisponivel`
+  // para `credencial_recusada` direto.
+  const causa = disponível ? null : causaDaPerda(motivos);
 
   // O primeiro ciclo sempre registra o estado encontrado; depois disso, só as
   // mudanças (FR-016). É o que garante que subir com o Holyrics fechado, ou com
@@ -80,12 +95,12 @@ export function avaliarDisponibilidade(
         : {
             tipo: 'holyrics_perdido',
             momento: leitura.momento,
-            causa: causaDaPerda(motivos),
+            causa: causa ?? 'indisponivel',
           },
     );
   }
 
-  return { disponível, falhasConsecutivas, jáAvaliado: true, eventos };
+  return { disponível, falhasConsecutivas, jáAvaliado: true, causa, eventos };
 }
 
 /**

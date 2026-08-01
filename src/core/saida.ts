@@ -38,6 +38,14 @@ export interface EstadoDaSaída {
   readonly grupo: GrupoResolvido | null;
   /** Trava de FR-027: falso até o primeiro `cor_anunciada`. */
   readonly jáHouveCor: boolean;
+  /**
+   * Nomes de grupo que a mesa reportou no último inventário (004/FR-009).
+   *
+   * Vazio até o primeiro inventário. Existe para que "o grupo configurado não
+   * foi encontrado" venha acompanhado dos que **foram** — sem isso, o
+   * diagnóstico diz o que está errado sem dizer o que digitar no lugar.
+   */
+  readonly gruposConhecidos: readonly string[];
 }
 
 export interface ParâmetrosDaSaída {
@@ -58,6 +66,7 @@ export function estadoInicial(): EstadoDaSaída {
     últimoConjuntoEscrito: null,
     grupo: null,
     jáHouveCor: false,
+    gruposConhecidos: [],
   };
 }
 

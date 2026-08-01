@@ -114,5 +114,34 @@
     "arquivo": "./logs/integrador.log",
     "tamanhoMaximoMb": 10,
     "arquivosMantidos": 5
+  },
+
+  "_painel-leia-me": [
+    "Bloco OPCIONAL (feature 004) — e ATENCAO: a convencao aqui e o INVERSO da",
+    "do bloco 'freestyler' acima. La, remover o bloco DESLIGA a saida. Aqui,",
+    "remover o bloco deixa a pagina LIGADA nos padroes.",
+    "",
+    "Nao e inconsistencia, e consequencia. Uma pagina que so liga depois de",
+    "declarada seria descoberta abrindo o arquivo que ela existe para voce nao",
+    "precisar abrir. Para DESLIGAR, declare 'habilitado': false — ato explicito.",
+    "",
+    "host  padrao '127.0.0.1': so a propria maquina enxerga. Trocar por",
+    "      '0.0.0.0' abre para a rede local e NAO pede senha nenhuma — quem",
+    "      alcancar a maquina edita toda a configuracao do integrador. E o mesmo",
+    "      nivel de exposicao que o Freestyler ja aceita na mesma rede, e esta",
+    "      aceito de olhos abertos. A subida avisa em log quando estiver exposta.",
+    "",
+    "port  padrao 3333, vizinho do 3332 do Freestyler. Porta ocupada por outro",
+    "      programa nao derruba nada: o servico sobe e opera sem a pagina, e o",
+    "      motivo vai para o log. Luz e a funcao principal; painel e conveniencia.",
+    "",
+    "O token do Holyrics nao aparece nesta pagina, nem em nenhuma resposta dela.",
+    "Ele nao vive na configuracao e continua nao vivendo."
+  ],
+
+  "painel": {
+    "habilitado": true,
+    "host": "127.0.0.1",
+    "port": 3333
   }
 }

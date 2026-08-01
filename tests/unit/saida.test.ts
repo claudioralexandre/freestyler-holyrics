@@ -240,6 +240,7 @@ describe('guardas defensivas', () => {
       últimoConjuntoEscrito: AZUL,
       grupo: GRUPO,
       jáHouveCor: true,
+      gruposConhecidos: [],
     };
 
     expect(planejarEnvio(e, mesa([3]))).toEqual([]);

@@ -45,6 +45,33 @@ que está acontecendo agora e deixa ajustar a configuração sem parar nada.
   ligada por padrão, escutar na rede por padrão exporia edição de configuração em
   toda instalação, inclusive nas de quem nunca quis a página. Abrir continua sendo
   ato deliberado — apenas sem senha.
+- Q: Edição do arquivo à mão, com o serviço rodando, deve valer sozinha? → A:
+  **Não** (FR-023a). Só submissão aceita pela página recarrega a quente; edição à
+  mão vale na próxima subida, como hoje. Observar o arquivo custaria debounce,
+  tratamento de gravação parcial de terceiros e um caminho novo para configuração
+  inválida alcançar serviço em execução — nada disso foi pedido (Princípio V). Em
+  troca, a página MUST mostrar quando o disco divergir do que está em execução.
+- Q: Com o arquivo mudado por fora, que saídas o operador tem ao salvar? → A:
+  **Duas, e nenhuma funde** (FR-026a): sobrescrever assim mesmo, ou descartar as
+  edições da página e recarregar do disco. Fusão campo a campo traria de volta o
+  "aplicar parte de uma submissão" que a FR-012 proíbe, e é abstração para um caso
+  que ainda não apareceu (Princípio V).
+- Q: Qual campo é a exceção da FR-021, que zera a máquina de estado da cor? → A:
+  **Só `leitura.regiao`** (FR-021a). É o único que troca a procedência da cor: a
+  referência guardada veio de outra região da tela, e o ΔE seguinte compararia
+  grandezas diferentes. Limiar e ciclos só mudam a régua, e `coresPorTag` já entra
+  na máquina como cor efetiva por desenho da 003 — nesses três, sobreviver é o
+  comportamento correto.
+- Q: E quando o operador muda, pela página, o endereço em que a própria página
+  escuta? → A: **Ela se re-serve no endereço novo** (FR-018a), com aviso antes de
+  aplicar; se o endereço novo não puder ser aberto, a alteração é recusada e o
+  antigo continua servindo. Mantém FR-010 e SC-002 sem exceção, e evita que um
+  erro de digitação deixe o operador sem página até o próximo reinício (FR-004a).
+- Q: E o nível de log editado pela página, com `LOG_LEVEL` definida no ambiente? →
+  A: **O ambiente continua vencendo, mas às claras** (FR-016a). A precedência faz
+  parte da validação que a FR-011 manda reaproveitar; fazer a página vencer daria
+  duas regras conforme o caminho usado. O defeito a corrigir não é a precedência —
+  é ela ser invisível.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -113,8 +140,12 @@ cada um passa a valer sem reinício e com o efeito colateral correto.
 4. **Given** o serviço operando, **When** o operador muda o intervalo de leitura,
    **Then** o ritmo passa a ser o novo sem que nenhuma leitura em curso seja
    abandonada pela metade.
-5. **Given** o serviço operando, **When** o operador muda o nível ou o destino do
-   log, **Then** os registros seguintes obedecem ao valor novo.
+5. **Given** o serviço operando sem `LOG_LEVEL` no ambiente, **When** o operador
+   muda o nível ou o destino do log, **Then** os registros seguintes obedecem ao
+   valor novo.
+6. **Given** o serviço operando **com** `LOG_LEVEL` no ambiente, **When** o
+   operador muda o nível do log, **Then** o valor é gravado e a página mostra que
+   o ambiente está sobrepondo o campo, sem prometer efeito que não haverá.
 
 ---
 
@@ -168,12 +199,17 @@ página não sobrescreve a edição sem avisar.
 **Acceptance Scenarios**:
 
 1. **Given** a página aberta, **When** o arquivo é alterado por fora e o operador
-   tenta salvar, **Then** a página avisa que o arquivo mudou e não sobrescreve
-   sem que ele decida.
+   tenta salvar, **Then** a página avisa que o arquivo mudou e oferece duas
+   saídas — sobrescrever por inteiro ou descartar as edições e recarregar do
+   disco —, sem sobrescrever antes de ele escolher.
 2. **Given** um arquivo com campos que a página não exibe, **When** o operador
    salva pela página, **Then** esses campos permanecem no arquivo inalterados.
 3. **Given** o arquivo editado à mão de forma válida, **When** o operador
-   recarrega a página, **Then** ela mostra os valores novos.
+   recarrega a página, **Then** ela mostra os valores novos do arquivo e sinaliza
+   que eles ainda não estão em execução.
+4. **Given** o arquivo editado à mão com o serviço rodando, **When** nenhuma
+   submissão é feita pela página, **Then** o serviço continua operando com a
+   configuração anterior até a próxima subida.
 
 ---
 
@@ -188,10 +224,16 @@ página não sobrescreve a edição sem avisar.
   relação a hoje — o serviço recusa subir, e sem serviço não há página.
 - **Duas abas editando ao mesmo tempo.** Mesma regra do arquivo alterado por
   fora: quem salvar por último é avisado de que a base mudou.
+- **Arquivo editado à mão com o serviço rodando.** Não recarrega sozinho
+  (FR-023a). A página mostra o valor do disco e sinaliza que ele ainda não vale;
+  quem quiser aplicá-lo submete pela página ou reinicia.
 - **Mapeamento removido enquanto o tema que o usava está no ar.** A cor extraída
   volta a valer no ciclo seguinte, como qualquer saída de override (003/FR-011).
 - **Campo alterado para o mesmo valor.** Não produz efeito colateral algum — nada
   de reconexão gratuita.
+- **Endereço da própria página alterado pela própria página.** A aba aberta perde
+  a conexão de propósito, avisada de antemão, e o operador vai para o endereço
+  novo (FR-018a). Endereço novo que não sobe é recusa, não perda da página.
 - **Endereço de conexão alterado para destino inexistente.** A conexão cai e entra
   em reconexão com backoff, exatamente como quando a ferramenta fecha. O serviço
   não morre (Princípio IV).
@@ -276,6 +318,16 @@ página não sobrescreve a edição sem avisar.
 - **FR-016**: Mensagens de erro MUST identificar o campo pelo caminho e MUST NOT
   ecoar o valor recebido — mesma regra do formatador já usado na validação.
 
+- **FR-016a**: Quando uma variável de ambiente sobrepuser um campo da configuração
+  — hoje `LOG_LEVEL` sobre o nível de log —, o campo MUST continuar editável e a
+  submissão MUST ser gravada normalmente, mas a página MUST mostrar que o ambiente
+  está sobrepondo aquele campo e que o valor salvo só passa a valer quando a
+  variável sair. A página MUST NOT inverter essa precedência.
+  > A precedência do ambiente faz parte da validação que a FR-011 manda
+  > reaproveitar; inverter só neste caminho daria duas regras conforme quem editou.
+  > Sem o aviso, porém, o operador salvaria, a página confirmaria o sucesso e o log
+  > seguiria igual — sem nenhuma pista do porquê.
+
 #### Recarga a quente
 
 - **FR-017**: Uma alteração aceita MUST passar a valer sem reinício do processo.
@@ -285,13 +337,32 @@ página não sobrescreve a edição sem avisar.
   sem abandonar leitura em curso; endereços de conexão exigem refazer aquela
   conexão e somente aquela; o nome do grupo seguidor exige nova resolução contra a
   mesa; destino e nível de log passam a valer nos registros seguintes.
+- **FR-018a**: Alterar o endereço de escuta da própria página MUST fazer o serviço
+  passar a servi-la no endereço novo e encerrar o antigo, sem reinício do
+  processo. A página MUST avisar, antes de aplicar, que a aba aberta perderá a
+  conexão e em que endereço ela volta. Se o endereço novo não puder ser aberto, a
+  alteração MUST ser recusada por inteiro e o antigo MUST continuar servindo.
+  > É o único campo cuja alteração derruba o canal por onde ela foi feita. Sem a
+  > recusa com preservação do antigo, um erro de digitação deixaria o operador sem
+  > página até o próximo reinício — o mesmo desamparo que a FR-004a proíbe na
+  > subida.
 - **FR-019**: Alterar um campo para o **mesmo valor** MUST NOT produzir efeito
   colateral algum — nenhuma reconexão, nenhuma reresolução, nenhum comando de luz.
 - **FR-020**: A recarga MUST NOT interromper um envio ao Freestyler já em curso.
   Vale a mesma serialização que a 002 exige (FR-016 de lá).
-- **FR-021**: A recarga MUST NOT reiniciar a máquina de estado da cor: a cor
-  pretendida e o histórico de confirmação sobrevivem à troca de configuração,
-  exceto quando o próprio campo alterado os torna sem sentido.
+- **FR-021**: A recarga MUST NOT reiniciar a máquina de estado da cor: a cor de
+  referência, a candidata e a contagem de confirmação sobrevivem à troca de
+  configuração. A única exceção é a FR-021a.
+- **FR-021a**: Alterar `leitura.regiao` MUST zerar a máquina de estado da cor —
+  referência, candidata e contagem —, de modo que a leitura seguinte seja adotada
+  e anunciada de imediato, como num arranque (001/FR-009a). Nenhum outro campo
+  MUST zerá-la, inclusive `cor.limiarDeltaE`, `cor.ciclosDeConfirmacao` e
+  `coresPorTag`.
+  > É o único campo que troca a **procedência** da cor. A referência guardada foi
+  > extraída de outra região da tela; mantê-la faria o ΔE seguinte comparar duas
+  > grandezas diferentes e decidir errado nos dois sentidos — anunciar mudança que
+  > não houve, ou engolir a que houve. Os outros três só mudam a régua ou a
+  > entrada, que a máquina já sabe tratar.
 - **FR-022**: Toda recarga aceita MUST ser registrada em log, nomeando quais
   campos mudaram — nunca o arquivo inteiro.
 
@@ -300,6 +371,15 @@ página não sobrescreve a edição sem avisar.
 - **FR-023**: A página MUST ler e escrever o **mesmo arquivo** já usado pelas
   features anteriores. MUST NOT haver segundo arquivo, banco de dados ou estado
   paralelo (002/FR-022).
+- **FR-023a**: A recarga a quente MUST ser disparada **somente** por submissão
+  aceita pela página. Alteração feita no arquivo por fora MUST NOT alterar a
+  configuração em execução; ela vale na subida seguinte, como antes desta feature.
+  Enquanto o disco divergir do que está em execução, a página MUST sinalizar a
+  divergência.
+  > Sem o sinal, o operador leria no formulário um valor que a cor efetiva ao lado
+  > não está usando — a mesma divergência silenciosa que a FR-023 existe para
+  > evitar. Com ele, o arquivo segue sendo a verdade sem que o serviço precise
+  > observá-lo (Princípio V).
 - **FR-024**: A gravação MUST ser atômica: uma interrupção a qualquer momento MUST
   deixar no disco o conteúdo antigo íntegro ou o novo íntegro, nunca um
   meio-termo.
@@ -308,6 +388,14 @@ página não sobrescreve a edição sem avisar.
 - **FR-025**: A gravação MUST preservar campos do arquivo que a página não exibe.
 - **FR-026**: Se o arquivo tiver mudado por fora desde que a página o carregou, o
   sistema MUST avisar e MUST NOT sobrescrever sem decisão explícita do operador.
+- **FR-026a**: Diante desse aviso, o operador MUST ter exatamente duas saídas:
+  **sobrescrever** com o conteúdo da página por inteiro, ou **descartar** as
+  edições da página e recarregar o que está no disco. O sistema MUST NOT fundir os
+  dois conteúdos, campo a campo ou de qualquer outra forma.
+  > Fundir seria compor uma configuração que ninguém escreveu, e reintroduziria
+  > pela porta dos fundos o "aplicar parte de uma submissão" proibido pela FR-012.
+  > As duas saídas cobrem os dois donos legítimos do conflito, e nenhuma delas
+  > descarta trabalho sem que o operador tenha mandado.
 - **FR-027**: Falha de gravação MUST ser reportada ao operador e MUST NOT alterar
   a configuração em execução.
 
@@ -333,8 +421,8 @@ página não sobrescreve a edição sem avisar.
 - **SC-002**: Nenhum ajuste feito pela página exige reinício do processo, para
   nenhum campo da configuração.
 - **SC-003**: Submeter configuração inválida deixa o serviço operando e o arquivo
-  intacto em 100% das tentativas, e a mensagem basta para corrigir sem consultar
-  documentação.
+  intacto em 100% das tentativas, e a mensagem nomeia o campo pelo caminho e o
+  problema, de modo que a correção seguinte seja aceita **sem sair da página**.
 - **SC-004**: O operador identifica as tags do tema em exibição pela página, sem
   abrir o arquivo de log, em qualquer momento do culto.
 - **SC-005**: Uma configuração salva pela página é aceita na subida seguinte do

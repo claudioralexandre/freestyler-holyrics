@@ -379,8 +379,17 @@ ter. A decisão saiu do sistema e foi para o arquivo.
 
 ## Out of Scope
 
-- Interface para editar o mapeamento. Ele vive no arquivo, como todo o resto.
-- Recarregar a configuração sem reiniciar o serviço.
+- ~~Interface para editar o mapeamento. Ele vive no arquivo, como todo o resto.~~
+  **Caiu na feature 004 (2026-07-31)**, e esta feature foi o que a motivou:
+  mapear uma tag exige saber quais tags o tema em exibição carrega, e isso só
+  existia no log, misturado a tudo o mais, enquanto o culto acontecia.
+- ~~Recarregar a configuração sem reiniciar o serviço.~~
+  **Caiu na feature 004 (2026-07-31), e é a reversão cara.** As outras
+  acrescentam um caminho; esta muda uma premissa que atravessava o código
+  inteiro — até ali, configuração era constante durante a vida do processo, e
+  todo componente que guardasse um valor na subida passou a estar errado. Por
+  isso a 004 traduz cada campo alterado num **efeito nomeado**, em vez de um
+  "recarregar tudo".
 - Override por nome do tema, por id do tema, por item ou por slide.
 - Modificar a cor extraída em vez de substituí-la — realce, saturação, correção
   de gama. Substituir é substituir.

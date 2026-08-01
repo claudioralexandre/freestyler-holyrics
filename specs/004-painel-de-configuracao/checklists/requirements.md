@@ -69,3 +69,8 @@
   estado que a 001 já expõe e a validação que já existe.
 - Nenhuma branch foi criada: o projeto não tem `.specify/extensions.yml`, e a
   criação de branch pertence ao hook do git.
+- **Segunda rodada de clarificação, mesma data.** Mais cinco perguntas, cinco
+  requisitos novos: FR-016a, FR-018a, FR-021a, FR-023a e FR-026a. A de maior
+  consequência é a FR-021a — ela substitui o "exceto quando o campo os torna sem
+  sentido" da FR-021, que era o único ponto da spec onde o comportamento dependia
+  da interpretação de quem implementasse.

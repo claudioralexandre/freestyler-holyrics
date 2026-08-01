@@ -94,6 +94,30 @@ const esquema = z.object({
    * canônico, salta para a frente das demais e ainda se reordena entre as outras
    * numéricas. A regra deixaria de valer sem que nada falhasse (FR-007a).
    */
+  /**
+   * Painel de configuração (feature 004).
+   *
+   * ⚠️ **A convenção é o INVERSO da do bloco `freestyler` acima**, e não é
+   * descuido. Lá, a ausência do bloco desliga a feature. Aqui, a ausência
+   * **liga** com os padrões (FR-004): a outra convenção seria circular — o
+   * operador descobriria que a página existe abrindo o arquivo que ela existe
+   * para ele não precisar abrir.
+   *
+   * `host` padrão é laço local (FR-003a). Abrir para a rede é ato deliberado, e
+   * **não pede senha nenhuma** (FR-003) — o risco está aceito e nomeado na spec.
+   * Ligada por padrão *mais* aberta por padrão exporia edição de configuração em
+   * toda instalação, inclusive nas de quem nunca quis a página.
+   */
+  painel: z
+    .object({
+      habilitado: z.boolean().default(true),
+      host: z.string().min(1).default('127.0.0.1'),
+      /** Vizinho do 3332 do Freestyler — o número que o operador já tem na cabeça. */
+      port: z.int().min(1).max(65535).default(3333),
+    })
+    // Os padrões são declarados campo a campo acima; este só cobre o bloco
+    // ausente por inteiro, que é o caso comum (FR-004).
+    .default({ habilitado: true, host: '127.0.0.1', port: 3333 }),
   coresPorTag: z
     .array(
       z.object({

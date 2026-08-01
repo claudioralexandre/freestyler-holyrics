@@ -732,7 +732,11 @@ log diz exatamente isso, listando os nomes válidos.
 
 ## Out of Scope
 
-- Interface web ou qualquer UI. A configuração vive em arquivo.
+- ~~Interface web ou qualquer UI. A configuração vive em arquivo.~~
+  **Caiu na feature 004 (2026-07-31).** A configuração continua vivendo em
+  arquivo; a página é um segundo caminho até ele. O comportamento desta feature
+  não muda: ela usa a configuração que estiver valendo — e agora essa
+  configuração pode mudar durante a execução, sem reinício.
 - Cenas, chases, efeitos temporizados, strobe.
 - Gobo, movimento, âmbar, branco — qualquer slot que não seja R/G/B.
 - Suporte a outro software de iluminação além do Freestyler.

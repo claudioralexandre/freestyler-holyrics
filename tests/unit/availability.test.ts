@@ -215,3 +215,72 @@ describe('contagem de falhas consecutivas', () => {
     expect(estado.falhasConsecutivas).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Feature 004 (emenda) — a causa sai do evento e entra no estado
+//
+// O evento `holyrics_perdido` já carregava a causa, mas evento é instantâneo: a
+// página precisa dela a todo momento. Sem isso, "não alcanço a máquina" e "o
+// token foi recusado" viram a mesma frase na tela — e elas pedem ações opostas.
+// ---------------------------------------------------------------------------
+
+const TODAS_RECUSADAS = {
+  cor: 'credencial_recusada' as const,
+  item: 'credencial_recusada' as const,
+  tema: 'credencial_recusada' as const,
+};
+
+describe('a causa da indisponibilidade fica no estado (004/FR-005)', () => {
+  it('é null enquanto o Holyrics responde', () => {
+    const d = avaliarDisponibilidade(DISPONIBILIDADE_INICIAL, leitura());
+
+    expect(d.disponível).toBe(true);
+    expect(d.causa).toBeNull();
+  });
+
+  it('é indisponivel quando ninguém atende', () => {
+    const d = avaliarDisponibilidade(DISPONIBILIDADE_INICIAL, leitura(TODAS_INDISPONÍVEIS));
+
+    expect(d.disponível).toBe(false);
+    expect(d.causa).toBe('indisponivel');
+  });
+
+  it('é credencial_recusada quando o token é rejeitado', () => {
+    const d = avaliarDisponibilidade(DISPONIBILIDADE_INICIAL, leitura(TODAS_RECUSADAS));
+
+    expect(d.disponível).toBe(false);
+    expect(d.causa).toBe('credencial_recusada');
+  });
+
+  it('credencial recusada prevalece sobre indisponibilidade', () => {
+    // Mesma regra que já valia para o log (001/FR-017): "indisponível" mandaria
+    // conferir se o Holyrics está aberto, quando o problema é o token.
+    const d = avaliarDisponibilidade(
+      DISPONIBILIDADE_INICIAL,
+      leitura({ cor: 'indisponivel', item: 'credencial_recusada', tema: 'indisponivel' }),
+    );
+
+    expect(d.causa).toBe('credencial_recusada');
+  });
+
+  it('a causa volta a null quando o Holyrics se recupera', () => {
+    let estado = avaliarDisponibilidade(DISPONIBILIDADE_INICIAL, leitura(TODAS_RECUSADAS));
+    expect(estado.causa).toBe('credencial_recusada');
+
+    estado = avaliarDisponibilidade(estado, leitura({}, 2000));
+
+    expect(estado.causa).toBeNull();
+  });
+
+  it('a causa acompanha a mudança de motivo sem exigir recuperação no meio', () => {
+    // Foi exatamente o que aconteceu em 31/07: o Holyrics subiu enquanto o
+    // integrador rodava, e as falhas passaram de `indisponivel` para
+    // `credencial_recusada` sem nenhum ciclo bem-sucedido entre as duas.
+    let estado = avaliarDisponibilidade(DISPONIBILIDADE_INICIAL, leitura(TODAS_INDISPONÍVEIS));
+    expect(estado.causa).toBe('indisponivel');
+
+    estado = avaliarDisponibilidade(estado, leitura(TODAS_RECUSADAS, 2000));
+
+    expect(estado.causa).toBe('credencial_recusada');
+  });
+});
