@@ -69,7 +69,7 @@ npm run dev
 ```
 
 Espere no log a linha `painel disponível` com o endereço. Abra
-`http://127.0.0.1:3333`.
+`http://127.0.0.1:13000`.
 
 | # | O que fazer | O que tem que acontecer | Requisito |
 |---|---|---|---|
@@ -95,7 +95,7 @@ Os passos 15 e 16 são a mesma verificação em dois sentidos, e os dois precisa
 passar. De outra máquina da LAN:
 
 ```bash
-curl --max-time 3 http://IP-DA-MAQUINA:3333/api/estado
+curl --max-time 3 http://IP-DA-MAQUINA:13000/api/estado
 ```
 
 No passo 15 tem que falhar por conexão recusada — se responder, a FR-003a está
@@ -164,7 +164,7 @@ de statements, branches, funções e linhas; `src/service/runtime.ts` idem.
 | 7 (FR-026, FR-026a) | `hashBase` errado → **409**; com `forcar: true` → **200** |
 | 8 (FR-015, SC-008) | Nenhuma ocorrência de "token" em nenhuma resposta |
 | 11 (FR-004a) | Segunda instância com a porta ocupada: subiu, registrou `painel não pôde subir; o serviço segue operando sem ele`, e seguiu lendo |
-| 12 (FR-003b, SC-010) | `PAINEL EXPOSTO NA REDE em http://0.0.0.0:3333 — qualquer máquina que alcance esta aqui pode editar a configuração, sem senha` |
+| 12 (FR-003b, SC-010) | `PAINEL EXPOSTO NA REDE em http://0.0.0.0:13000 — qualquer máquina que alcance esta aqui pode editar a configuração, sem senha` |
 | 15 (FR-003a, SC-009) | De `192.168.1.27`, com o padrão `127.0.0.1`: **conexão recusada** |
 | 16 (FR-003) | Com `painel.host: "0.0.0.0"`, a mesma URL: **200** |
 | 17 (**SC-005**) | Salvou pela API, encerrou, subiu de novo: aceitou o arquivo, com `regiao: 3` e `limiarDeltaE: 7` — os valores que a página gravou |

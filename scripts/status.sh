@@ -27,6 +27,26 @@ else
   printf '  %sparado%s\n' "$amarelo" "$fim"
 fi
 
+# O painel é a interface principal desde a 004 — dizer só "rodando" deixaria de
+# fora justamente a informação que o operador vai usar.
+painel="$(node -e '
+try {
+  const p = (require("./config/config.json").painel) ?? {};
+  if (p.habilitado === false) { console.log("desligado"); process.exit(0); }
+  console.log("http://" + (p.host ?? "127.0.0.1") + ":" + (p.port ?? 13000));
+} catch { console.log("?"); }
+' 2>/dev/null || echo '?')"
+
+if [ "$painel" = 'desligado' ]; then
+  printf '  Painel: %sdesligado por configuração%s\n' "$amarelo" "$fim"
+elif [ "$painel" != '?' ]; then
+  if curl -s -o /dev/null --max-time 2 "$painel/api/estado" 2>/dev/null; then
+    printf '  Painel: %s%s%s (respondendo)\n' "$verde" "$painel" "$fim"
+  else
+    printf '  Painel: %s (não respondeu)\n' "$painel"
+  fi
+fi
+
 log="$(ls -t logs/integrador*.log 2>/dev/null | head -1 || true)"
 
 if [ -z "$log" ]; then

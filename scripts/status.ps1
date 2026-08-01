@@ -30,6 +30,25 @@ if (Test-Path $arquivoPid) {
     Write-Host "  parado" -ForegroundColor Yellow
 }
 
+# O painel é a interface principal desde a 004 — dizer só "rodando" deixaria de
+# fora justamente a informação que o operador vai usar.
+try {
+    $pnl = (Get-Content 'config\config.json' -Raw | ConvertFrom-Json).painel
+    if ($null -ne $pnl -and $pnl.habilitado -eq $false) {
+        Write-Host "  Painel: desligado por configuração" -ForegroundColor Yellow
+    } else {
+        $h = if ($pnl -and $pnl.host) { $pnl.host } else { '127.0.0.1' }
+        $pt = if ($pnl -and $pnl.port) { $pnl.port } else { 13000 }
+        $url = "http://$($h):$pt"
+        try {
+            Invoke-WebRequest -Uri "$url/api/estado" -TimeoutSec 2 -UseBasicParsing | Out-Null
+            Write-Host "  Painel: $url (respondendo)" -ForegroundColor Green
+        } catch {
+            Write-Host "  Painel: $url (não respondeu)"
+        }
+    }
+} catch { }
+
 $log = Get-ChildItem 'logs\integrador*.log' -ErrorAction SilentlyContinue |
        Sort-Object LastWriteTime -Descending |
        Select-Object -First 1

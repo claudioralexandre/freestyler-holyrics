@@ -117,12 +117,21 @@ Ok "Suíte passou — a lógica de cor funciona sem o Holyrics estar aberto"
 Write-Host "`n=== Pronto ===" -ForegroundColor Cyan
 Write-Host @"
 
-  Antes do primeiro teste real, faltam três coisas suas:
+  Antes do primeiro teste real, falta UMA coisa sua:
 
-    1. Colocar o token do Holyrics no arquivo .env
-    2. Conferir a porta do API Server em config\config.json
-    3. Acertar freestyler.grupo com o NOME do grupo como ele aparece na mesa,
-       e freestyler.corDeRepouso com o neutro desta instalação
+    Colocar o token do Holyrics no arquivo .env
+
+  O token é a única configuração que NÃO se ajusta pela página, de propósito:
+  ela não tem senha, então não guarda segredo.
+
+  Todo o resto — porta do API Server, nome do grupo seguidor, cor de repouso,
+  região, limiar, cores por tag — se acerta pelo painel, com o serviço no ar:
+
+    http://127.0.0.1:13000
+
+  O grupo seguidor vira uma LISTA quando a mesa responde: você escolhe, não
+  digita. E as tags do tema em exibição aparecem clicáveis — mapear uma cor é
+  clicar nela, sem redigitar.
 
   Depois:
 

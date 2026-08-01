@@ -477,7 +477,7 @@ describe('invariante de carga do coresPorTag (T013, FR-004)', () => {
 // ---------------------------------------------------------------------------
 
 describe('bloco painel (004/T024)', () => {
-  it('AUSENTE liga a página em 127.0.0.1:3333 (FR-004, FR-003a)', () => {
+  it('AUSENTE liga a página em 127.0.0.1:13000 (FR-004, FR-003a)', () => {
     // ⚠️ Convenção INVERSA à do bloco `freestyler`, e de propósito. Lá, ausência
     // desliga. Aqui, ausência liga — porque a alternativa é circular: o operador
     // descobriria que a página existe abrindo o arquivo que ela existe para ele
@@ -489,7 +489,7 @@ describe('bloco painel (004/T024)', () => {
     expect(r.valor.painel).toEqual({
       habilitado: true,
       host: '127.0.0.1',
-      port: 3333,
+      port: 13000,
     });
   });
 
@@ -552,7 +552,7 @@ describe('bloco painel (004/T024)', () => {
   });
 
   it('recusa porta não inteira', () => {
-    expect(validarConfig({ ...base(), painel: { port: 3333.5 } }).ok).toBe(false);
+    expect(validarConfig({ ...base(), painel: { port: 13000.5 } }).ok).toBe(false);
   });
 });
 

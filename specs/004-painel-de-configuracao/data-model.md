@@ -163,7 +163,7 @@ estrutural, e mantê-la assim vale mais que qualquer verificação.
 painel?: {
   habilitado?: boolean   // default true   (FR-004)
   host?: string          // default "127.0.0.1" (FR-003a)
-  port?: number          // default 3333
+  port?: number          // default 13000
 }
 ```
 
@@ -172,8 +172,9 @@ ausência do bloco desliga a feature. Aqui, a ausência **liga** com os padrões
 porque a FR-004 observou que a outra convenção é circular: o operador descobriria
 que a página existe abrindo o arquivo que a página existe para ele não abrir.
 
-`3333` é vizinho do `3332` do Freestyler, que é o número que o operador já tem na
-cabeça. Colisão de porta não derruba nada (FR-004a).
+`13000` é faixa alta e livre: não colide com o `8080` do Holyrics nem com o
+`3332` do Freestyler, e fica fora do intervalo que o Windows costuma reservar
+para portas efêmeras. Colisão de porta não derruba nada (FR-004a).
 
 Escutar em `0.0.0.0` — ou em qualquer coisa que não seja laço local — obriga o
 aviso de subida da FR-003b.

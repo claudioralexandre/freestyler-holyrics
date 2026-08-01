@@ -112,12 +112,16 @@ const esquema = z.object({
     .object({
       habilitado: z.boolean().default(true),
       host: z.string().min(1).default('127.0.0.1'),
-      /** Vizinho do 3332 do Freestyler — o número que o operador já tem na cabeça. */
-      port: z.int().min(1).max(65535).default(3333),
+      /**
+       * Faixa alta e livre: 13000 não colide com o 8080 do Holyrics nem com o
+       * 3332 do Freestyler, e está fora do intervalo que o Windows costuma
+       * reservar para portas efêmeras.
+       */
+      port: z.int().min(1).max(65535).default(13000),
     })
     // Os padrões são declarados campo a campo acima; este só cobre o bloco
     // ausente por inteiro, que é o caso comum (FR-004).
-    .default({ habilitado: true, host: '127.0.0.1', port: 3333 }),
+    .default({ habilitado: true, host: '127.0.0.1', port: 13000 }),
   coresPorTag: z
     .array(
       z.object({

@@ -138,12 +138,12 @@ describe('blocos inteiros que entram e saem', () => {
 
   it('acrescentar um bloco novo na submissão o inclui', () => {
     const s = submissão();
-    s['painel'] = { habilitado: true, host: '0.0.0.0', port: 3333 };
+    s['painel'] = { habilitado: true, host: '0.0.0.0', port: 13000 };
 
     expect(mesclarConfig(configBruta(), s, CONHECIDAS)['painel']).toEqual({
       habilitado: true,
       host: '0.0.0.0',
-      port: 3333,
+      port: 13000,
     });
   });
 });

@@ -41,8 +41,17 @@ if [ -f "$arquivo_pid" ]; then
 fi
 
 # ------------------------------------------------------- Pré-requisitos ----
+# Compila quando falta OU quando o fonte é mais novo que o compilado.
+#
+# Só checar a ausência era um defeito silencioso: depois de um `git pull`, o
+# `dist/` continuava lá — velho — e o integrador subia com o código anterior,
+# sem nada indicando. Medido em 01/08: dist de um dia antes, sem o painel
+# dentro, e o operador só descobriria pela porta que não responde.
 if [ ! -f dist/main.js ]; then
   echo "  Projeto não compilado. Compilando..."
+  npm run build
+elif [ -n "$(find src tsconfig.build.json package.json -newer dist/main.js 2>/dev/null | head -1)" ]; then
+  echo "  Código mais novo que a compilação. Recompilando..."
   npm run build
 fi
 
@@ -52,8 +61,10 @@ if [ ! -f config/config.json ]; then
 fi
 
 # ------------------------------------------------------- Credencial -------
-# O .env existe só para a conveniência de quem opera: quem lê a variável é o
-# processo, não o arquivo. O integrador nunca lê .env por conta própria.
+# Carregado aqui porque este script chama `node` direto, sem passar pelos
+# scripts do package.json — que desde 2026-08-01 usam `--env-file-if-exists`.
+# Os dois caminhos levam ao mesmo lugar; sem este bloco, subir por aqui pegaria
+# só o que já estivesse no ambiente do shell.
 if [ -f .env ]; then
   set -a
   # shellcheck disable=SC1091
@@ -93,6 +104,29 @@ fi
 echo "$processo" > "$arquivo_pid"
 
 ok "Integrador rodando (PID $processo)"
+
+# O painel vem LIGADO por padrão (004/FR-004), e o operador precisa saber onde
+# ele está — anunciar aqui é o que evita ter de abrir o arquivo que a página
+# existe para ele não precisar abrir.
+painel="$(node -e '
+try {
+  const c = require("./config/config.json");
+  const p = c.painel ?? {};
+  if (p.habilitado === false) { console.log("desligado"); process.exit(0); }
+  const host = p.host ?? "127.0.0.1";
+  const porta = p.port ?? 13000;
+  const aberto = host !== "127.0.0.1" && host !== "localhost" && host !== "::1";
+  console.log((aberto ? "EXPOSTO " : "") + "http://" + (aberto ? "<ip-desta-maquina>" : host) + ":" + porta);
+} catch { console.log("?"); }
+' 2>/dev/null || echo '?')"
+
+case "$painel" in
+  desligado) printf '  Painel: %sdesligado por configuração%s\n' "$amarelo" "$fim" ;;
+  EXPOSTO*) printf '  Painel: %s%s%s\n' "$vermelho" "${painel#EXPOSTO }" "$fim"
+            printf '  %sAberto na rede, SEM SENHA: quem alcançar esta máquina edita a configuração.%s\n' "$vermelho" "$fim" ;;
+  '?')      printf '  Painel: não consegui ler a porta em config/config.json\n' ;;
+  *)        printf '  Painel: %s%s%s\n' "$azul" "$painel" "$fim" ;;
+esac
 if [ "$modo_debug" -eq 1 ]; then
   printf '  %sModo debug: cada leitura vai para o log. Bom para calibrar,%s\n' "$amarelo" "$fim"
   printf '  %sruim para deixar ligado o culto inteiro.%s\n' "$amarelo" "$fim"

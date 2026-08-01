@@ -47,9 +47,22 @@ if (Test-Path $arquivoPid) {
 }
 
 # ------------------------------------------------------- Pré-requisitos ----
+# Compila quando falta OU quando o fonte é mais novo que o compilado.
+#
+# Só checar a ausência era um defeito silencioso: depois de um `git pull`, o
+# `dist\` continuava lá — velho — e o integrador subia com o código anterior,
+# sem nada indicando.
 if (-not (Test-Path 'dist\main.js')) {
     Write-Host "  Projeto não compilado. Compilando..."
     npm run build
+} else {
+    $compilado = (Get-Item 'dist\main.js').LastWriteTime
+    $maisNovo = Get-ChildItem -Path 'src', 'tsconfig.build.json', 'package.json' -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.LastWriteTime -gt $compilado } | Select-Object -First 1
+    if ($maisNovo) {
+        Write-Host "  Código mais novo que a compilação. Recompilando..."
+        npm run build
+    }
 }
 
 if (-not (Test-Path 'config\config.json')) {
@@ -58,8 +71,9 @@ if (-not (Test-Path 'config\config.json')) {
 }
 
 # ------------------------------------------------------- Credencial -------
-# O .env existe só para a conveniência de quem opera: quem lê a variável é o
-# processo, não o arquivo. O integrador nunca lê .env por conta própria.
+# Carregado aqui porque este script chama `node` direto, sem passar pelos
+# scripts do package.json — que desde 2026-08-01 usam `--env-file-if-exists`.
+# Os dois caminhos levam ao mesmo lugar.
 if (Test-Path '.env') {
     Get-Content '.env' | ForEach-Object {
         $linha = $_.Trim()
@@ -113,6 +127,28 @@ if ($processo.HasExited) {
 $processo.Id | Set-Content $arquivoPid
 
 Ok "Integrador rodando (PID $($processo.Id))"
+
+# O painel vem LIGADO por padrão (004/FR-004), e o operador precisa saber onde
+# ele está — anunciar aqui é o que evita ter de abrir o arquivo que a página
+# existe para ele não precisar abrir.
+try {
+    $cfg = Get-Content 'config\config.json' -Raw | ConvertFrom-Json
+    $pnl = $cfg.painel
+    if ($null -ne $pnl -and $pnl.habilitado -eq $false) {
+        Write-Host "  Painel: desligado por configuração" -ForegroundColor Yellow
+    } else {
+        $h = if ($pnl -and $pnl.host) { $pnl.host } else { '127.0.0.1' }
+        $pt = if ($pnl -and $pnl.port) { $pnl.port } else { 13000 }
+        if ($h -in @('127.0.0.1', 'localhost', '::1')) {
+            Write-Host "  Painel: http://$($h):$pt" -ForegroundColor Cyan
+        } else {
+            Write-Host "  Painel: http://<ip-desta-maquina>:$pt" -ForegroundColor Red
+            Write-Host "  Aberto na rede, SEM SENHA: quem alcançar esta máquina edita a configuração." -ForegroundColor Red
+        }
+    }
+} catch {
+    Write-Host "  Painel: não consegui ler a porta em config\config.json"
+}
 if ($Debug) {
     Write-Host "  Modo debug: cada leitura vai para o log. Bom para calibrar," -ForegroundColor Yellow
     Write-Host "  ruim para deixar ligado o culto inteiro." -ForegroundColor Yellow

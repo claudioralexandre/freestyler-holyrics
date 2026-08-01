@@ -33,7 +33,7 @@ sobre entrada hostil — daí a T069 existir sozinha.
 
 ## Phase 1 — Setup
 
-- [X] T001 [P] Acrescentar a seção `painel` a `config/config.example.json`, comentada com os três padrões (`habilitado: true`, `host: "127.0.0.1"`, `port: 3333`) e com a convenção **inversa** à do bloco `freestyler`
+- [X] T001 [P] Acrescentar a seção `painel` a `config/config.example.json`, comentada com os três padrões (`habilitado: true`, `host: "127.0.0.1"`, `port: 13000`) e com a convenção **inversa** à do bloco `freestyler`
   > Na 002, a ausência do bloco desliga a feature. Aqui a ausência **liga**, por FR-004. Quem ler os dois blocos no mesmo arquivo vai supor a mesma regra; o comentário existe para desfazer isso no lugar onde a suposição nasce.
 - [X] T002 [P] Criar `tests/fixtures/config-bruta.ts` com um JSON de configuração completo contendo (a) uma chave que o esquema **não** conhece, no topo e aninhada, e (b) `coresPorTag` com três entradas em ordem declarada
 
@@ -94,7 +94,7 @@ ciclo completo de submissão**. A tentação é deixar validar/gravar para a his
 que exercita cada caso; o resultado seria uma US1 que mostra tudo e não salva
 nada.
 
-- [X] T024 Escrever em `tests/unit/config.test.ts` os testes do bloco `painel`: ausente liga a página em `127.0.0.1:3333`; `habilitado: false` desliga; host vazio e porta fora de faixa são recusados; um `painel` parcial recebe os padrões nos campos omitidos. Confirmar RED
+- [X] T024 Escrever em `tests/unit/config.test.ts` os testes do bloco `painel`: ausente liga a página em `127.0.0.1:13000`; `habilitado: false` desliga; host vazio e porta fora de faixa são recusados; um `painel` parcial recebe os padrões nos campos omitidos. Confirmar RED
 - [X] T025 Acrescentar o bloco `painel` ao esquema em `src/adapters/config.ts`, com os padrões de [data-model.md](data-model.md#configuração--bloco-novo-painel) (FR-002, FR-003, FR-003a, FR-004)
 - [X] T026 [P] Criar `src/adapters/config-escrita.ts` com a leitura bruta do arquivo e o hash SHA-256 do conteúdo, via `node:crypto` (FR-026)
 - [X] T027 Implementar a gravação atômica em `src/adapters/config-escrita.ts`: temporário no **mesmo diretório**, `fsync`, `rename` sobre o original, com retentativa curta em `EPERM`/`EBUSY` (FR-024)
