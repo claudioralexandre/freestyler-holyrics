@@ -1,0 +1,10 @@
+# O Windows PowerShell 5.1 (o que vem no Windows 10/11) não reconhece o
+# terminador de here-string quando o arquivo tem fim de linha LF: o script
+# morre em ParserError antes da primeira instrução. Os .ps1 saem daqui em
+# CRLF, sempre, independente da plataforma de quem clonou.
+*.ps1 text eol=crlf
+
+# Os .sh rodam em shell POSIX, onde CR vira caractere de comando.
+*.sh  text eol=lf
+
+* text=auto

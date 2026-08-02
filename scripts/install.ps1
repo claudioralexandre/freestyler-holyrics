@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Instala tudo que o integrador precisa para rodar nesta máquina.
 
@@ -115,36 +115,40 @@ Ok "Suíte passou — a lógica de cor funciona sem o Holyrics estar aberto"
 
 # ------------------------------------------------------------- Resumo ------
 Write-Host "`n=== Pronto ===" -ForegroundColor Cyan
-Write-Host @"
-
-  Antes do primeiro teste real, falta UMA coisa sua:
-
-    Colocar o token do Holyrics no arquivo .env
-
-  O token é a única configuração que NÃO se ajusta pela página, de propósito:
-  ela não tem senha, então não guarda segredo.
-
-  Todo o resto — porta do API Server, nome do grupo seguidor, cor de repouso,
-  região, limiar, cores por tag — se acerta pelo painel, com o serviço no ar:
-
-    http://127.0.0.1:13000
-
-  O grupo seguidor vira uma LISTA quando a mesa responde: você escolhe, não
-  digita. E as tags do tema em exibição aparecem clicáveis — mapear uma cor é
-  clicar nela, sem redigitar.
-
-  Depois:
-
-    .\scripts\start.ps1          sobe o integrador em segundo plano
-    .\scripts\start.ps1 -Debug   sobe com detalhe por leitura, para calibrar
-    .\scripts\status.ps1         mostra se está rodando e os últimos eventos
-    .\scripts\stop.ps1           encerra
-
-  Se o nome do grupo estiver errado, o log lista os nomes válidos na linha
-  "inventário do Freestyler" e nenhuma luz é comandada — não há dano, só
-  silêncio. Para rodar SEM comandar luz, remova o bloco freestyler inteiro.
-
-  A região de cor, o limiar e o tempo limite já foram calibrados contra o
-  Holyrics real em 2026-07-28. Não são mais chute.
-
-"@
+# Sem here-string de propósito: o Windows PowerShell 5.1 não reconhece
+# o terminador quando o arquivo chega com fim de linha LF, e o script inteiro
+# morre em ParserError antes de executar a primeira linha.
+$resumo = @(
+    ''
+    '  Antes do primeiro teste real, falta UMA coisa sua:'
+    ''
+    '    Colocar o token do Holyrics no arquivo .env'
+    ''
+    '  O token é a única configuração que NÃO se ajusta pela página, de propósito:'
+    '  ela não tem senha, então não guarda segredo.'
+    ''
+    '  Todo o resto — porta do API Server, nome do grupo seguidor, cor de repouso,'
+    '  região, limiar, cores por tag — se acerta pelo painel, com o serviço no ar:'
+    ''
+    '    http://127.0.0.1:13000'
+    ''
+    '  O grupo seguidor vira uma LISTA quando a mesa responde: você escolhe, não'
+    '  digita. E as tags do tema em exibição aparecem clicáveis — mapear uma cor é'
+    '  clicar nela, sem redigitar.'
+    ''
+    '  Depois:'
+    ''
+    '    .\scripts\start.ps1          sobe o integrador em segundo plano'
+    '    .\scripts\start.ps1 -Debug   sobe com detalhe por leitura, para calibrar'
+    '    .\scripts\status.ps1         mostra se está rodando e os últimos eventos'
+    '    .\scripts\stop.ps1           encerra'
+    ''
+    '  Se o nome do grupo estiver errado, o log lista os nomes válidos na linha'
+    '  "inventário do Freestyler" e nenhuma luz é comandada — não há dano, só'
+    '  silêncio. Para rodar SEM comandar luz, remova o bloco freestyler inteiro.'
+    ''
+    '  A região de cor, o limiar e o tempo limite já foram calibrados contra o'
+    '  Holyrics real em 2026-07-28. Não são mais chute.'
+    ''
+)
+Write-Host ($resumo -join [Environment]::NewLine)

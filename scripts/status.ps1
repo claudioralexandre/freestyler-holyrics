@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Mostra se o integrador está rodando e o que ele registrou por último.
 
