@@ -1,14 +1,11 @@
-﻿<#
-.SYNOPSIS
-  Encerra o integrador.
-
-.DESCRIPTION
-  Para o processo registrado por start.ps1. Não mexe no Holyrics nem no
-  Freestyler.
-
-.EXAMPLE
-  .\scripts\stop.ps1
-#>
+# Encerra o integrador.
+#
+# Para o processo registrado por start.ps1. Nao mexe no Holyrics nem no
+# Freestyler.
+#
+#   .\scripts\stop.ps1
+#
+# Cabecalho em comentario de linha, e sem acento, de proposito - ver install.ps1.
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -21,10 +18,10 @@ $arquivoPid = '.run\integrador.pid'
 function Ok($texto)    { Write-Host "  [ok] $texto" -ForegroundColor Green }
 function Aviso($texto) { Write-Host "  [!]  $texto" -ForegroundColor Yellow }
 
-# A conferência de que o processo é `node` importa MAIS aqui do que nos outros
-# scripts: este é o único que mata. O .pid sobrevive a reboot e o Windows
-# reaproveita número, então parar pelo número cru significaria, depois de
-# reiniciar a máquina, derrubar o programa que herdou o PID.
+# A conferencia de que o processo e `node` importa MAIS aqui do que nos outros
+# scripts: este e o unico que mata. O .pid sobrevive a reboot e o Windows
+# reaproveita numero, entao parar pelo numero cru significaria, depois de
+# reiniciar a maquina, derrubar o programa que herdou o PID.
 function PidRegistrado($caminho) {
     $bruto = @(Get-Content $caminho -ErrorAction SilentlyContinue)
     $numero = 0
@@ -40,7 +37,7 @@ function ProcessoNode($numero) {
 }
 
 if (-not (Test-Path $arquivoPid)) {
-    Aviso "Nenhum integrador registrado — nada a encerrar."
+    Aviso "Nenhum integrador registrado - nada a encerrar."
     exit 0
 }
 
@@ -49,9 +46,9 @@ $processo = ProcessoNode $processoPid
 
 if (-not $processo) {
     if ($processoPid -le 0) {
-        Aviso "Registro ilegível em $arquivoPid. Limpando."
+        Aviso "Registro ilegivel em $arquivoPid. Limpando."
     } else {
-        Aviso "Não há processo node com o PID $processoPid. Limpando o registro."
+        Aviso "Nao ha processo node com o PID $processoPid. Limpando o registro."
     }
     Remove-Item $arquivoPid -Force
     exit 0
@@ -63,7 +60,7 @@ Remove-Item $arquivoPid -Force
 
 Ok "Integrador encerrado (PID $processoPid)"
 
-# O Windows não tem encerramento gracioso para processo de console: o log é
-# escrito por um worker separado, e as últimas linhas podem se perder. O que já
-# foi gravado permanece íntegro.
-Write-Host "  As últimas linhas do log podem ter se perdido no encerramento."
+# O Windows nao tem encerramento gracioso para processo de console: o log e
+# escrito por um worker separado, e as ultimas linhas podem se perder. O que ja
+# foi gravado permanece integro.
+Write-Host "  As ultimas linhas do log podem ter se perdido no encerramento."

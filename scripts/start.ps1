@@ -1,19 +1,12 @@
-﻿<#
-.SYNOPSIS
-  Sobe o integrador em segundo plano.
-
-.PARAMETER Debug
-  Registra o detalhe de cada leitura — as 8 regiões de cor e o ΔE. É o modo
-  usado para calibrar a região e o limiar. Enche o log depressa; não deixe
-  ligado durante um culto inteiro.
-
-.PARAMETER Foreground
-  Roda preso a esta janela, mostrando o log ao vivo. Ctrl+C encerra.
-
-.EXAMPLE
-  .\scripts\start.ps1
-  .\scripts\start.ps1 -Debug
-#>
+# Sobe o integrador em segundo plano.
+#
+#   .\scripts\start.ps1              modo normal
+#   .\scripts\start.ps1 -Debug       detalhe por leitura, para calibrar a
+#                                    regiao e o limiar. Enche o log depressa;
+#                                    nao deixe ligado o culto inteiro.
+#   .\scripts\start.ps1 -Foreground  preso a esta janela, log ao vivo
+#
+# Cabecalho em comentario de linha, e sem acento, de proposito - ver install.ps1.
 
 param(
     [switch]$Debug,
@@ -28,22 +21,22 @@ Set-Location $raiz
 
 $arquivoPid = '.run\integrador.pid'
 
-# ⚠️ Caminho absoluto porque a resolução do relativo aqui NÃO está verificada no
-# Windows PowerShell 5.1, que é onde isto roda. Set-Location muda a localização
-# do PowerShell, não o diretório do processo, e os dois divergem quando o script
-# é chamado de dentro de scripts\. Medido no PowerShell 7: o Start-Process
-# resolve pela localização do PowerShell, e o relativo funcionaria. No 5.1, não
-# sei — e o absoluto torna a pergunta irrelevante.
+# ! Caminho absoluto porque a resolucao do relativo aqui NAO esta verificada no
+# Windows PowerShell 5.1, que e onde isto roda. Set-Location muda a localizacao
+# do PowerShell, nao o diretorio do processo, e os dois divergem quando o script
+# e chamado de dentro de scripts\. Medido no PowerShell 7: o Start-Process
+# resolve pela localizacao do PowerShell, e o relativo funcionaria. No 5.1, nao
+# sei - e o absoluto torna a pergunta irrelevante.
 $saidaConsole = Join-Path $raiz 'logs\console.out.log'
 $saidaErro = Join-Path $raiz 'logs\console.err.log'
 
 function Erro($texto) { Write-Host "  [x]  $texto" -ForegroundColor Red }
 function Ok($texto)   { Write-Host "  [ok] $texto" -ForegroundColor Green }
 
-# O .run\integrador.pid sobrevive a reboot, e o Windows reaproveita número de
-# PID. Depois de reiniciar a máquina, o número registrado quase certamente
-# pertence a outro programa: sem conferir que o processo é `node`, "já está
-# rodando" vira recusa de subir por causa de um programa qualquer — e o
+# O .run\integrador.pid sobrevive a reboot, e o Windows reaproveita numero de
+# PID. Depois de reiniciar a maquina, o numero registrado quase certamente
+# pertence a outro programa: sem conferir que o processo e `node`, "ja esta
+# rodando" vira recusa de subir por causa de um programa qualquer - e o
 # stop.ps1 mataria esse programa.
 function PidRegistrado($caminho) {
     $bruto = @(Get-Content $caminho -ErrorAction SilentlyContinue)
@@ -59,11 +52,11 @@ function ProcessoNode($numero) {
     return $null
 }
 
-# Set-StrictMode -Version Latest transforma "propriedade que não existe" em
-# ERRO, e todo campo do bloco painel é opcional por definição — bloco ausente
-# LIGA a página nos padrões (004/FR-004). Ler direto tropeçaria justamente na
-# configuração padrão, e o catch lá embaixo traduziria o tropeço em "não
-# consegui ler a porta": mentira, com a página no ar.
+# Set-StrictMode -Version Latest transforma "propriedade que nao existe" em
+# ERRO, e todo campo do bloco painel e opcional por definicao - bloco ausente
+# LIGA a pagina nos padroes (004/FR-004). Ler direto tropecaria justamente na
+# configuracao padrao, e o catch la embaixo traduziria o tropeco em "nao
+# consegui ler a porta": mentira, com a pagina no ar.
 function Campo($objeto, $nome, $padrao) {
     if ($null -eq $objeto) { return $padrao }
     $propriedade = $objeto.PSObject.Properties[$nome]
@@ -71,46 +64,46 @@ function Campo($objeto, $nome, $padrao) {
     return $propriedade.Value
 }
 
-# ------------------------------------------------- Já está rodando? --------
+# ------------------------------------------------- Ja esta rodando? --------
 if (Test-Path $arquivoPid) {
     $vivo = ProcessoNode (PidRegistrado $arquivoPid)
     if ($vivo) {
-        Erro "O integrador já está rodando (PID $($vivo.Id))."
+        Erro "O integrador ja esta rodando (PID $($vivo.Id))."
         Write-Host "  Use .\scripts\stop.ps1 antes de subir de novo."
         exit 1
     }
-    # PID órfão: o processo morreu sem limpar, ou o número virou de outro
+    # PID orfao: o processo morreu sem limpar, ou o numero virou de outro
     # programa depois de um reboot. Segue em frente.
     Remove-Item $arquivoPid -Force
 }
 
-# ------------------------------------------------------- Pré-requisitos ----
-# Compila quando falta OU quando o fonte é mais novo que o compilado.
+# ------------------------------------------------------- Pre-requisitos ----
+# Compila quando falta OU quando o fonte e mais novo que o compilado.
 #
-# Só checar a ausência era um defeito silencioso: depois de um `git pull`, o
-# `dist\` continuava lá — velho — e o integrador subia com o código anterior,
+# So checar a ausencia era um defeito silencioso: depois de um `git pull`, o
+# `dist\` continuava la - velho - e o integrador subia com o codigo anterior,
 # sem nada indicando.
 if (-not (Test-Path 'dist\main.js')) {
-    Write-Host "  Projeto não compilado. Compilando..."
+    Write-Host "  Projeto nao compilado. Compilando..."
     npm run build
 } else {
     $compilado = (Get-Item 'dist\main.js').LastWriteTime
     $maisNovo = Get-ChildItem -Path 'src', 'tsconfig.build.json', 'package.json' -Recurse -File -ErrorAction SilentlyContinue |
                 Where-Object { $_.LastWriteTime -gt $compilado } | Select-Object -First 1
     if ($maisNovo) {
-        Write-Host "  Código mais novo que a compilação. Recompilando..."
+        Write-Host "  Codigo mais novo que a compilacao. Recompilando..."
         npm run build
     }
 }
 
 if (-not (Test-Path 'config\config.json')) {
-    Erro "config\config.json não existe. Rode .\scripts\install.ps1 primeiro."
+    Erro "config\config.json nao existe. Rode .\scripts\install.ps1 primeiro."
     exit 1
 }
 
 # ------------------------------------------------------- Credencial -------
 # Carregado aqui porque este script chama `node` direto, sem passar pelos
-# scripts do package.json — que desde 2026-08-01 usam `--env-file-if-exists`.
+# scripts do package.json - que desde 2026-08-01 usam `--env-file-if-exists`.
 # Os dois caminhos levam ao mesmo lugar.
 if (Test-Path '.env') {
     Get-Content '.env' | ForEach-Object {
@@ -127,8 +120,8 @@ if (Test-Path '.env') {
 }
 
 if (-not $env:HOLYRICS_TOKEN) {
-    Erro "HOLYRICS_TOKEN não está definido."
-    Write-Host "  Coloque o token no arquivo .env, ou defina na sessão:"
+    Erro "HOLYRICS_TOKEN nao esta definido."
+    Write-Host "  Coloque o token no arquivo .env, ou defina na sessao:"
     Write-Host '    $env:HOLYRICS_TOKEN = "seu-token"' -ForegroundColor White
     exit 1
 }
@@ -155,8 +148,8 @@ $processo = Start-Process -FilePath 'node' `
 Start-Sleep -Seconds 2
 
 if ($processo.HasExited) {
-    Erro "O integrador subiu e morreu logo em seguida (código $($processo.ExitCode))."
-    Write-Host "  Provavelmente é configuração inválida. O motivo está em:"
+    Erro "O integrador subiu e morreu logo em seguida (codigo $($processo.ExitCode))."
+    Write-Host "  Provavelmente e configuracao invalida. O motivo esta em:"
     Write-Host "    $saidaErro" -ForegroundColor White
     if (Test-Path $saidaErro) { Get-Content $saidaErro -Tail 20 }
     exit 1
@@ -166,14 +159,14 @@ $processo.Id | Set-Content $arquivoPid
 
 Ok "Integrador rodando (PID $($processo.Id))"
 
-# O painel vem LIGADO por padrão (004/FR-004), e o operador precisa saber onde
-# ele está — anunciar aqui é o que evita ter de abrir o arquivo que a página
-# existe para ele não precisar abrir.
+# O painel vem LIGADO por padrao (004/FR-004), e o operador precisa saber onde
+# ele esta - anunciar aqui e o que evita ter de abrir o arquivo que a pagina
+# existe para ele nao precisar abrir.
 try {
     $cfg = Get-Content 'config\config.json' -Raw | ConvertFrom-Json
     $pnl = Campo $cfg 'painel' $null
     if ((Campo $pnl 'habilitado' $true) -eq $false) {
-        Write-Host "  Painel: desligado por configuração" -ForegroundColor Yellow
+        Write-Host "  Painel: desligado por configuracao" -ForegroundColor Yellow
     } else {
         $h = Campo $pnl 'host' '127.0.0.1'
         $pt = Campo $pnl 'port' 13000
@@ -181,11 +174,11 @@ try {
             Write-Host "  Painel: http://$($h):$pt" -ForegroundColor Cyan
         } else {
             Write-Host "  Painel: http://<ip-desta-maquina>:$pt" -ForegroundColor Red
-            Write-Host "  Aberto na rede, SEM SENHA: quem alcançar esta máquina edita a configuração." -ForegroundColor Red
+            Write-Host "  Aberto na rede, SEM SENHA: quem alcancar esta maquina edita a configuracao." -ForegroundColor Red
         }
     }
 } catch {
-    Write-Host "  Painel: não consegui ler a porta em config\config.json"
+    Write-Host "  Painel: nao consegui ler a porta em config\config.json"
 }
 if ($Debug) {
     Write-Host "  Modo debug: cada leitura vai para o log. Bom para calibrar," -ForegroundColor Yellow

@@ -1,7 +1,7 @@
-# O Windows PowerShell 5.1 (o que vem no Windows 10/11) não reconhece o
-# terminador de here-string quando o arquivo tem fim de linha LF: o script
-# morre em ParserError antes da primeira instrução. Os .ps1 saem daqui em
-# CRLF, sempre, independente da plataforma de quem clonou.
+# Os .ps1 saem daqui em CRLF, que e a convencao do Windows e o que o Bloco de
+# Notas espera. Nao e mais questao de funcionar: depois que o bloco de
+# comentario e a here-string sairam dos scripts, eles passam a ser analisados
+# com qualquer fim de linha. E preferencia de plataforma, nao dependencia.
 *.ps1 text eol=crlf
 
 # Os .sh rodam em shell POSIX, onde CR vira caractere de comando.
