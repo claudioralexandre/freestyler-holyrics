@@ -12,6 +12,18 @@ raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$raiz"
 
 arquivo_pid='.run/integrador.pid'
+
+# O .run/integrador.pid sobrevive a reboot e o sistema reaproveita numero de
+# PID: depois de reiniciar, o numero registrado provavelmente pertence a outro
+# programa. Conferir que o processo e `node` e o que separa "o integrador esta
+# no ar" de "alguem herdou o numero" — sem isso o stop.sh mata o programa errado.
+# O basename e por causa do macOS, onde `ps -o comm=` devolve o caminho inteiro.
+processo_eh_node() {
+  local numero="${1:-}" nome
+  case "$numero" in ''|*[!0-9]*) return 1 ;; esac
+  nome="$(ps -p "$numero" -o comm= 2>/dev/null | tr -d ' ')"
+  [ "${nome##*/}" = 'node' ]
+}
 saida='logs/console.out.log'
 
 verde=$'\033[32m'; amarelo=$'\033[33m'; vermelho=$'\033[31m'; azul=$'\033[36m'; fim=$'\033[0m'
@@ -31,12 +43,13 @@ done
 # ------------------------------------------------- Já está rodando? --------
 if [ -f "$arquivo_pid" ]; then
   pid_anterior="$(cat "$arquivo_pid")"
-  if kill -0 "$pid_anterior" 2>/dev/null; then
+  if processo_eh_node "$pid_anterior"; then
     erro "O integrador já está rodando (PID $pid_anterior)."
     echo "  Use ./scripts/stop.sh antes de subir de novo."
     exit 1
   fi
-  # PID órfão: o processo morreu sem limpar.
+  # PID órfão: morreu sem limpar, ou o número virou de outro programa
+  # depois de um reboot.
   rm -f "$arquivo_pid"
 fi
 

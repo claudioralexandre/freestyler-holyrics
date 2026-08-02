@@ -27,22 +27,60 @@ $raiz = Split-Path -Parent $PSScriptRoot
 Set-Location $raiz
 
 $arquivoPid = '.run\integrador.pid'
-$saidaConsole = 'logs\console.out.log'
-$saidaErro = 'logs\console.err.log'
+
+# ⚠️ Caminho absoluto porque a resolução do relativo aqui NÃO está verificada no
+# Windows PowerShell 5.1, que é onde isto roda. Set-Location muda a localização
+# do PowerShell, não o diretório do processo, e os dois divergem quando o script
+# é chamado de dentro de scripts\. Medido no PowerShell 7: o Start-Process
+# resolve pela localização do PowerShell, e o relativo funcionaria. No 5.1, não
+# sei — e o absoluto torna a pergunta irrelevante.
+$saidaConsole = Join-Path $raiz 'logs\console.out.log'
+$saidaErro = Join-Path $raiz 'logs\console.err.log'
 
 function Erro($texto) { Write-Host "  [x]  $texto" -ForegroundColor Red }
 function Ok($texto)   { Write-Host "  [ok] $texto" -ForegroundColor Green }
 
+# O .run\integrador.pid sobrevive a reboot, e o Windows reaproveita número de
+# PID. Depois de reiniciar a máquina, o número registrado quase certamente
+# pertence a outro programa: sem conferir que o processo é `node`, "já está
+# rodando" vira recusa de subir por causa de um programa qualquer — e o
+# stop.ps1 mataria esse programa.
+function PidRegistrado($caminho) {
+    $bruto = @(Get-Content $caminho -ErrorAction SilentlyContinue)
+    $numero = 0
+    if ($bruto.Count -eq 0 -or -not [int]::TryParse($bruto[0], [ref]$numero)) { return 0 }
+    return $numero
+}
+
+function ProcessoNode($numero) {
+    if ($numero -le 0) { return $null }
+    $processo = Get-Process -Id $numero -ErrorAction SilentlyContinue
+    if ($processo -and $processo.ProcessName -eq 'node') { return $processo }
+    return $null
+}
+
+# Set-StrictMode -Version Latest transforma "propriedade que não existe" em
+# ERRO, e todo campo do bloco painel é opcional por definição — bloco ausente
+# LIGA a página nos padrões (004/FR-004). Ler direto tropeçaria justamente na
+# configuração padrão, e o catch lá embaixo traduziria o tropeço em "não
+# consegui ler a porta": mentira, com a página no ar.
+function Campo($objeto, $nome, $padrao) {
+    if ($null -eq $objeto) { return $padrao }
+    $propriedade = $objeto.PSObject.Properties[$nome]
+    if ($null -eq $propriedade -or $null -eq $propriedade.Value) { return $padrao }
+    return $propriedade.Value
+}
+
 # ------------------------------------------------- Já está rodando? --------
 if (Test-Path $arquivoPid) {
-    $pidAnterior = Get-Content $arquivoPid
-    $vivo = Get-Process -Id $pidAnterior -ErrorAction SilentlyContinue
+    $vivo = ProcessoNode (PidRegistrado $arquivoPid)
     if ($vivo) {
-        Erro "O integrador já está rodando (PID $pidAnterior)."
+        Erro "O integrador já está rodando (PID $($vivo.Id))."
         Write-Host "  Use .\scripts\stop.ps1 antes de subir de novo."
         exit 1
     }
-    # PID órfão: o processo morreu sem limpar. Segue em frente.
+    # PID órfão: o processo morreu sem limpar, ou o número virou de outro
+    # programa depois de um reboot. Segue em frente.
     Remove-Item $arquivoPid -Force
 }
 
@@ -133,12 +171,12 @@ Ok "Integrador rodando (PID $($processo.Id))"
 # existe para ele não precisar abrir.
 try {
     $cfg = Get-Content 'config\config.json' -Raw | ConvertFrom-Json
-    $pnl = $cfg.painel
-    if ($null -ne $pnl -and $pnl.habilitado -eq $false) {
+    $pnl = Campo $cfg 'painel' $null
+    if ((Campo $pnl 'habilitado' $true) -eq $false) {
         Write-Host "  Painel: desligado por configuração" -ForegroundColor Yellow
     } else {
-        $h = if ($pnl -and $pnl.host) { $pnl.host } else { '127.0.0.1' }
-        $pt = if ($pnl -and $pnl.port) { $pnl.port } else { 13000 }
+        $h = Campo $pnl 'host' '127.0.0.1'
+        $pt = Campo $pnl 'port' 13000
         if ($h -in @('127.0.0.1', 'localhost', '::1')) {
             Write-Host "  Painel: http://$($h):$pt" -ForegroundColor Cyan
         } else {

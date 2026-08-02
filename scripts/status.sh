@@ -10,17 +10,29 @@ raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$raiz"
 
 arquivo_pid='.run/integrador.pid'
+
+# O .run/integrador.pid sobrevive a reboot e o sistema reaproveita numero de
+# PID: depois de reiniciar, o numero registrado provavelmente pertence a outro
+# programa. Conferir que o processo e `node` e o que separa "o integrador esta
+# no ar" de "alguem herdou o numero" — sem isso o stop.sh mata o programa errado.
+# O basename e por causa do macOS, onde `ps -o comm=` devolve o caminho inteiro.
+processo_eh_node() {
+  local numero="${1:-}" nome
+  case "$numero" in ''|*[!0-9]*) return 1 ;; esac
+  nome="$(ps -p "$numero" -o comm= 2>/dev/null | tr -d ' ')"
+  [ "${nome##*/}" = 'node' ]
+}
 azul=$'\033[36m'; verde=$'\033[32m'; amarelo=$'\033[33m'; fim=$'\033[0m'
 
 printf '\n%s=== Integrador ===%s\n' "$azul" "$fim"
 
 if [ -f "$arquivo_pid" ]; then
   processo="$(cat "$arquivo_pid")"
-  if kill -0 "$processo" 2>/dev/null; then
+  if processo_eh_node "$processo"; then
     tempo="$(ps -o etime= -p "$processo" 2>/dev/null | tr -d ' ' || echo '?')"
     printf '  %srodando%s (PID %s, há %s)\n' "$verde" "$fim" "$processo" "$tempo"
   else
-    printf '  %sregistrado como PID %s, mas o processo não existe%s\n' "$amarelo" "$processo" "$fim"
+    printf '  %sregistrado como PID %s, mas não há processo node com esse número%s\n' "$amarelo" "$processo" "$fim"
     echo "  (rode ./scripts/stop.sh para limpar)"
   fi
 else
